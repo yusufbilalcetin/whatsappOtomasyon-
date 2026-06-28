@@ -56,10 +56,19 @@
               <span>Kişi</span>
               <select name="contactId" required></select>
             </label>
-            <label class="field">
+            <div class="field">
               <span>Saat</span>
-              <input name="time" type="time" required value="08:00" />
-            </label>
+              <button type="button" class="time-trigger" id="time-trigger">
+                <svg class="ti-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" stroke-linecap="round" />
+                </svg>
+                <span id="time-display">08:00 AM</span>
+                <svg class="ti-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <input type="hidden" name="time" id="time-value" value="08:00" />
+            </div>
             <label class="field">
               <span>Mesaj kaynağı</span>
               <select name="messageMode">
@@ -133,6 +142,28 @@
     </main>
 
     <div id="toast" class="toast"></div>
+  </div>
+
+  <!-- Saat seçici popup -->
+  <div class="tp-overlay hidden" id="tp-overlay">
+    <div class="tp-panel" id="tp-panel">
+      <div class="tp-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" stroke-linecap="round" />
+        </svg>
+        <span>Saat seçin</span>
+      </div>
+      <div class="tp-wheels" id="tp-wheels">
+        <div class="tp-band"></div>
+        <div class="tp-col" data-col="hour"></div>
+        <div class="tp-col" data-col="minute"></div>
+        <div class="tp-col" data-col="ampm"></div>
+      </div>
+      <div class="tp-actions">
+        <button type="button" class="btn btn-ghost" id="tp-cancel">İptal</button>
+        <button type="button" class="btn btn-primary" id="tp-ok">Tamam</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/assets/app.js"></script>

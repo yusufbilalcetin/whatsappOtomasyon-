@@ -4,6 +4,7 @@ import {
   onSnapshot, query, orderBy, limit, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
 import { firebaseConfig } from './firebase-config.js';
+import { initTimePicker, syncTimeDisplay } from './timepicker.js';
 
 const db = getFirestore(initializeApp(firebaseConfig));
 const col = (name) => collection(db, name);
@@ -59,6 +60,8 @@ function resetAutomationForm() {
   autoForm.reset();
   autoForm.id.value = '';
   $$('#automation-form input[name="days"]').forEach((cb) => (cb.checked = true));
+  autoForm.time.value = '08:00';
+  syncTimeDisplay();
   $('#automation-title').textContent = 'Yeni otomasyon';
   toggleModeFields();
 }
@@ -123,6 +126,7 @@ function fillAutomation(a) {
   autoForm.name.value = a.name || '';
   autoForm.contactId.value = a.contactId || '';
   autoForm.time.value = a.time || '08:00';
+  syncTimeDisplay();
   autoForm.messageMode.value = a.messageMode || 'fixed';
   autoForm.messageText.value = a.messageText || '';
   autoForm.aiPrompt.value = a.aiPrompt || '';
@@ -229,6 +233,7 @@ function renderEngine(settings) {
 
 // =================== Canlı dinleyiciler ===================
 function start() {
+  initTimePicker();
   toggleModeFields();
   onSnapshot(query(col('contacts'), orderBy('name')), (s) => renderContacts(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
   onSnapshot(col('automations'), (s) => renderAutomations(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
