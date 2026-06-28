@@ -23,7 +23,6 @@
       <button class="seg active" data-tab="connection">Bağlantı</button>
       <button class="seg" data-tab="automations">Otomasyonlar</button>
       <button class="seg" data-tab="contacts">Kişiler</button>
-      <button class="seg" data-tab="messages">Mesajlar</button>
       <button class="seg" data-tab="logs">Kayıtlar</button>
       <button class="seg" data-tab="ai">AI Yanıt</button>
     </nav>
@@ -64,14 +63,13 @@
             <label class="field">
               <span>Mesaj kaynağı</span>
               <select name="messageMode">
-                <option value="random">Rastgele (mesaj havuzu)</option>
-                <option value="fixed">Sabit mesaj</option>
-                <option value="ai">AI (Gemini) üretir</option>
+                <option value="fixed">Kendi mesajım</option>
+                <option value="ai">AI (Gemini) yazsın</option>
               </select>
             </label>
-            <label class="field span-2 hidden" data-mode="fixed">
-              <span>Sabit mesaj</span>
-              <select name="messageId"></select>
+            <label class="field span-2" data-mode="fixed">
+              <span>Mesaj</span>
+              <textarea name="messageText" rows="3" placeholder="Günaydın güzelim, umarım bugün yüzün hep güler ❤️"></textarea>
             </label>
             <label class="field span-2 hidden" data-mode="ai">
               <span>AI isteği</span>
@@ -117,21 +115,6 @@
           </form>
         </div>
         <ul id="contact-list" class="list"></ul>
-      </section>
-
-      <!-- Mesajlar -->
-      <section id="tab-messages" class="tab hidden">
-        <div class="card">
-          <div class="card-head"><h2>Mesaj ekle</h2></div>
-          <form id="message-form" class="form-grid">
-            <input type="hidden" name="id" />
-            <label class="field span-2"><span>Metin</span><input name="text" required placeholder="Günaydın..." /></label>
-            <div class="actions span-2">
-              <button type="submit" class="btn btn-primary">Ekle</button>
-            </div>
-          </form>
-        </div>
-        <ul id="message-list" class="list"></ul>
       </section>
 
       <!-- Kayıtlar -->

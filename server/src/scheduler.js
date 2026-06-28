@@ -4,7 +4,6 @@ import { logger } from './logger.js';
 import {
   listAutomations,
   getContact,
-  listMessages,
   addLog,
   markAutomationRun,
 } from './firestore.js';
@@ -38,15 +37,11 @@ function cronExpr(time, days) {
 
 async function resolveMessage(automation) {
   if (automation.messageMode === 'ai') {
-    return generateMessage(automation.aiPrompt || 'Gunaydin mesaji');
+    return generateMessage(automation.aiPrompt || automation.messageText || 'Gunaydin mesaji');
   }
-  const messages = await listMessages({ activeOnly: true });
-  if (automation.messageMode === 'fixed' && automation.messageId) {
-    const fixed = messages.find((m) => m.id === automation.messageId);
-    if (fixed) return fixed.text;
-  }
-  if (!messages.length) throw new Error('Aktif mesaj bulunamadi.');
-  return messages[Math.floor(Math.random() * messages.length)].text;
+  const text = (automation.messageText || '').trim();
+  if (!text) throw new Error('Mesaj metni bos.');
+  return text;
 }
 
 async function runAutomation(automation) {

@@ -12,7 +12,6 @@ const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
 let contacts = [];
-let messages = [];
 
 const DAYS = [['mon', 'Pzt'], ['tue', 'Sal'], ['wed', 'Çar'], ['thu', 'Per'], ['fri', 'Cum'], ['sat', 'Cmt'], ['sun', 'Paz']];
 const dayTr = Object.fromEntries(DAYS);
@@ -71,13 +70,16 @@ autoForm.onsubmit = async (e) => {
   const days = fd.getAll('days');
   if (!days.length) return toast('En az bir gün seçin.');
   if (!fd.get('contactId')) return toast('Önce bir kişi ekleyin.');
+  const mode = fd.get('messageMode');
+  if (mode === 'fixed' && !fd.get('messageText').trim()) return toast('Mesaj yazın.');
+  if (mode === 'ai' && !fd.get('aiPrompt').trim()) return toast('AI isteği yazın.');
   const payload = {
     name: fd.get('name').trim(),
     contactId: fd.get('contactId'),
     time: fd.get('time'),
-    messageMode: fd.get('messageMode'),
-    messageId: fd.get('messageId') || null,
-    aiPrompt: fd.get('aiPrompt') || '',
+    messageMode: mode,
+    messageText: fd.get('messageText').trim(),
+    aiPrompt: fd.get('aiPrompt').trim(),
     enabled: autoForm.enabled.checked,
     days,
     timezone: 'Europe/Istanbul',
@@ -98,7 +100,7 @@ function renderAutomations(items) {
   items.forEach((a) => {
     const c = contacts.find((x) => x.id === a.contactId);
     const days = (a.days || []).map((d) => dayTr[d] || d).join(' ');
-    const modeTr = { random: 'Rastgele', fixed: 'Sabit', ai: 'AI' }[a.messageMode] || a.messageMode;
+    const modeTr = { fixed: 'Mesaj', ai: 'AI' }[a.messageMode] || a.messageMode;
     const li = document.createElement('li');
     li.innerHTML = `
       <div class="li-main">
@@ -121,8 +123,8 @@ function fillAutomation(a) {
   autoForm.name.value = a.name || '';
   autoForm.contactId.value = a.contactId || '';
   autoForm.time.value = a.time || '08:00';
-  autoForm.messageMode.value = a.messageMode || 'random';
-  autoForm.messageId.value = a.messageId || '';
+  autoForm.messageMode.value = a.messageMode || 'fixed';
+  autoForm.messageText.value = a.messageText || '';
   autoForm.aiPrompt.value = a.aiPrompt || '';
   autoForm.enabled.checked = !!a.enabled;
   $$('#automation-form input[name="days"]').forEach((cb) => (cb.checked = (a.days || []).includes(cb.value)));
@@ -164,33 +166,6 @@ function renderContacts(items) {
   });
   autoForm.contactId.innerHTML = items.map((c) => `<option value="${c.id}">${c.name}</option>`).join('')
     || '<option value="">(önce kişi ekleyin)</option>';
-}
-
-// =================== Mesajlar ===================
-const messageForm = $('#message-form');
-messageForm.onsubmit = async (e) => {
-  e.preventDefault();
-  const fd = new FormData(messageForm);
-  await addDoc(col('messages'), { text: fd.get('text').trim(), isActive: true });
-  messageForm.reset();
-  toast('Eklendi.');
-};
-
-function renderMessages(items) {
-  messages = items;
-  const ul = $('#message-list');
-  ul.innerHTML = '';
-  items.forEach((m) => {
-    const li = document.createElement('li');
-    li.innerHTML = `
-      <div class="li-main"><div class="li-title">${m.text} <span class="badge ${m.isActive ? 'ok' : 'off'}">${m.isActive ? 'aktif' : 'pasif'}</span></div></div>
-      <div class="li-actions"><button class="icon-btn" title="Aç/Kapat">${m.isActive ? '⏸' : '▶'}</button><button class="icon-btn danger">🗑</button></div>`;
-    const [toggle, del] = li.querySelectorAll('button');
-    toggle.onclick = async () => await updateDoc(doc(db, 'messages', m.id), { isActive: !m.isActive });
-    del.onclick = async () => { if (confirm('Silinsin mi?')) { await deleteDoc(doc(db, 'messages', m.id)); toast('Silindi.'); } };
-    ul.appendChild(li);
-  });
-  autoForm.messageId.innerHTML = items.map((m) => `<option value="${m.id}">${m.text.slice(0, 48)}</option>`).join('');
 }
 
 // =================== Kayıtlar ===================
@@ -256,7 +231,6 @@ function renderEngine(settings) {
 function start() {
   toggleModeFields();
   onSnapshot(query(col('contacts'), orderBy('name')), (s) => renderContacts(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  onSnapshot(col('messages'), (s) => renderMessages(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
   onSnapshot(col('automations'), (s) => renderAutomations(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
   onSnapshot(query(col('logs'), orderBy('sentAt', 'desc'), limit(100)), (s) => renderLogs(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
   onSnapshot(doc(db, 'settings', 'global'), (d) => renderEngine(d.data()));
