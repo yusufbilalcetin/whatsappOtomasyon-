@@ -211,14 +211,45 @@ function renderLogs(items) {
   });
 }
 
-// =================== Motor durumu ===================
+// =================== Motor + WhatsApp bağlantı durumu ===================
 function renderEngine(settings) {
+  const s = settings || {};
+  const beat = s.engineHeartbeat?.toDate ? s.engineHeartbeat.toDate() : null;
+  const engineOnline = beat && (Date.now() - beat.getTime() < 3 * 60 * 1000);
+
+  // Üst rozet: motor + WhatsApp birlikte
   const pill = $('#engine-pill');
-  const text = $('#engine-text');
-  const beat = settings?.engineHeartbeat?.toDate ? settings.engineHeartbeat.toDate() : null;
-  const online = beat && (Date.now() - beat.getTime() < 5 * 60 * 1000);
-  pill.className = 'pill ' + (online ? 'pill--ok' : 'pill--off');
-  text.textContent = online ? 'Motor çevrimiçi' : 'Motor çevrimdışı';
+  const pillText = $('#engine-text');
+  if (!engineOnline) {
+    pill.className = 'pill pill--off';
+    pillText.textContent = 'Motor çevrimdışı';
+  } else if (s.waState === 'open') {
+    pill.className = 'pill pill--ok';
+    pillText.textContent = 'WhatsApp bağlı';
+  } else {
+    pill.className = 'pill pill--muted';
+    pillText.textContent = 'Motor açık · WhatsApp bekliyor';
+  }
+
+  // Bağlantı sekmesi
+  const text = $('#conn-text');
+  const qr = $('#conn-qr');
+  qr.classList.add('hidden');
+  if (!engineOnline) {
+    text.textContent = 'Motor çevrimdışı. Mesaj gönderimi için motoru (bilgisayar/sunucu) çalıştırın.';
+  } else if (s.waState === 'open') {
+    text.textContent = '✓ WhatsApp bağlı. Otomasyonlar çalışmaya hazır.';
+  } else if (s.waState === 'qr' && s.waQr) {
+    text.textContent = 'Telefonunuzla bu QR kodu okutun:';
+    qr.src = s.waQr;
+    qr.classList.remove('hidden');
+  } else if (s.waState === 'connecting') {
+    text.textContent = 'WhatsApp’a bağlanılıyor…';
+  } else if (s.waState === 'logged_out') {
+    text.textContent = 'Oturum kapandı. Motoru yeniden başlatıp QR’ı tekrar okutun.';
+  } else {
+    text.textContent = 'WhatsApp bağlantısı bekleniyor…';
+  }
 }
 
 // =================== Canlı dinleyiciler ===================

@@ -160,6 +160,12 @@ select {
 .badge.off { background: var(--surface-2); color: var(--muted); }
 .badge.err { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }
 
+.qr {
+  width: 260px; max-width: 80%; border-radius: 16px; background: #fff;
+  padding: 12px; margin: 6px auto 16px; display: block; box-shadow: var(--shadow);
+}
+.muted.small { font-size: 12.5px; margin-top: 8px; }
+
 .hidden { display: none !important; }
 
 /* Toast */

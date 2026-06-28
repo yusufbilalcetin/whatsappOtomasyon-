@@ -166,6 +166,14 @@ export async function writeHeartbeat() {
   await settingsDoc().set({ engineHeartbeat: FieldValue.serverTimestamp() }, { merge: true });
 }
 
+// WhatsApp baglanti durumu + QR'i panele tasi (panel Firestore'dan okur, QR'i gosterir).
+export async function setWhatsappStatus(waState, waQr = null) {
+  await settingsDoc().set(
+    { waState, waQr, waUpdated: FieldValue.serverTimestamp() },
+    { merge: true },
+  );
+}
+
 // Otomasyonlar degisince motoru haberdar et (panelden ekleme/silme/guncelleme).
 export function watchAutomations(onChange) {
   return automationsCol().onSnapshot(

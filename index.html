@@ -20,7 +20,8 @@
     </header>
 
     <nav class="segmented" role="tablist">
-      <button class="seg active" data-tab="automations">Otomasyonlar</button>
+      <button class="seg active" data-tab="connection">Bağlantı</button>
+      <button class="seg" data-tab="automations">Otomasyonlar</button>
       <button class="seg" data-tab="contacts">Kişiler</button>
       <button class="seg" data-tab="messages">Mesajlar</button>
       <button class="seg" data-tab="logs">Kayıtlar</button>
@@ -28,8 +29,20 @@
     </nav>
 
     <main>
+      <!-- Bağlantı -->
+      <section id="tab-connection" class="tab">
+        <div class="card center">
+          <div class="card-head"><h2>WhatsApp bağlantısı</h2></div>
+          <div id="conn-body">
+            <p class="muted" id="conn-text">Motor durumu kontrol ediliyor…</p>
+            <img id="conn-qr" class="qr hidden" alt="QR kodu" />
+          </div>
+          <p class="muted small">QR yalnızca motor çalışırken görünür. Telefonda WhatsApp → Bağlı cihazlar → Cihaz bağla ile okutun.</p>
+        </div>
+      </section>
+
       <!-- Otomasyonlar -->
-      <section id="tab-automations" class="tab">
+      <section id="tab-automations" class="tab hidden">
         <div class="card">
           <div class="card-head">
             <h2 id="automation-title">Yeni otomasyon</h2>
