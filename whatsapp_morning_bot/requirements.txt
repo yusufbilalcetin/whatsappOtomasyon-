@@ -1,0 +1,7 @@
+customtkinter>=5.2.2
+APScheduler>=3.10.4
+python-dotenv>=1.0.1
+Pillow>=10.0.0
+pyautogui>=0.9.54
+playwright>=1.47
+anthropic>=0.40

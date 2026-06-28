@@ -1,0 +1,24 @@
+# systemd servis dosyasi (Oracle Cloud / herhangi bir Linux VM)
+# Kurulum:
+#   sudo cp deploy/whatsapp-otomasyon.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now whatsapp-otomasyon
+#   journalctl -u whatsapp-otomasyon -f   # loglari izle (QR burada gorunur)
+
+[Unit]
+Description=WhatsApp Otomasyon Servisi
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Asagidaki yolu ve kullaniciyi kendi sunucuna gore duzenle:
+User=ubuntu
+WorkingDirectory=/home/ubuntu/whatsapp-otomasyon/server
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+# --- Gizli / hassas ---
+server/.env
+server/service-account.json
+server/auth_info/
+**/application_default_credentials.json
+
+# --- Bagimliliklar / build ---
+node_modules/
+server/node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+build/
+dist/
+
+# --- Veri / log ---
+*.log
+whatsapp_morning_bot/data/
+whatsapp_morning_bot/PyWhatKit_DB.txt
+
+# --- OS ---
+Thumbs.db
+.DS_Store

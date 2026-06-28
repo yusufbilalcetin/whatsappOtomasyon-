@@ -1,0 +1,35 @@
+# Sanal ortam
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Ortam değişkenleri (gizli)
+.env
+
+# Uygulama verileri (kişisel bilgi + oturum/kimlik bilgileri içerir)
+data/
+!data/.gitkeep
+
+# Chrome otomasyon profilleri (Login Data, Cookies vb. hassas)
+chrome_profile/
+chrome_profile_mirror/
+chrome_voice_profile/
+
+# Veritabanı
+*.db
+*.db-journal
+
+# pywhatkit otomatik kayıt dosyası
+PyWhatKit_DB.txt
+
+# PyInstaller / Inno Setup çıktıları
+/dist/
+/build/
+packaging/installer/
+*.spec.bak

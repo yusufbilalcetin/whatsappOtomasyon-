@@ -1,0 +1,2 @@
+"""CustomTkinter UI pages."""
+
