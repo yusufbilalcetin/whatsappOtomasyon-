@@ -1,19 +1,26 @@
-import { config } from './config.js';
 import { logger } from './logger.js';
-import { ensureSeed } from './firestore.js';
+import { ensureSeed, writeHeartbeat, watchAutomations } from './firestore.js';
 import { startWhatsApp } from './whatsapp.js';
 import { reloadSchedules } from './scheduler.js';
-import { createApp } from './api.js';
 
+// Motor: WhatsApp baglantisi + zamanlayici. Panel ayri (Vercel) calisir;
+// ikisi Firestore uzerinden konusur.
 async function main() {
   await ensureSeed();
   await startWhatsApp();
   await reloadSchedules();
 
-  const app = createApp();
-  app.listen(config.port, () => {
-    logger.info(`Panel ve API hazir: http://localhost:${config.port}`);
+  // Panelden otomasyon degisince zamanlamalari yeniden kur.
+  watchAutomations(() => {
+    reloadSchedules().catch((e) => logger.error(e, 'Zamanlama yenileme hatasi.'));
   });
+
+  // Panelin "motor cevrimici" rozetini beslemek icin kalp atisi.
+  const beat = () => writeHeartbeat().catch((e) => logger.warn(e, 'Heartbeat yazilamadi.'));
+  beat();
+  setInterval(beat, 60_000);
+
+  logger.info('Motor calisiyor. WhatsApp QR bekleniyor (ilk kurulumda).');
 }
 
 main().catch((err) => {

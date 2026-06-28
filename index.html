@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>WhatsApp Otomasyon</title>
+  <link rel="preconnect" href="https://www.gstatic.com" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <span>WhatsApp Otomasyon</span>
+      </div>
+      <div id="engine-pill" class="pill pill--muted">
+        <span class="dot"></span><span id="engine-text">Motor durumu</span>
+      </div>
+    </header>
+
+    <nav class="segmented" role="tablist">
+      <button class="seg active" data-tab="automations">Otomasyonlar</button>
+      <button class="seg" data-tab="contacts">Kişiler</button>
+      <button class="seg" data-tab="messages">Mesajlar</button>
+      <button class="seg" data-tab="logs">Kayıtlar</button>
+      <button class="seg" data-tab="ai">AI Yanıt</button>
+    </nav>
+
+    <main>
+      <!-- Otomasyonlar -->
+      <section id="tab-automations" class="tab">
+        <div class="card">
+          <div class="card-head">
+            <h2 id="automation-title">Yeni otomasyon</h2>
+          </div>
+          <form id="automation-form" class="form-grid">
+            <input type="hidden" name="id" />
+            <label class="field">
+              <span>İsim</span>
+              <input name="name" required placeholder="Sabah mesajı" />
+            </label>
+            <label class="field">
+              <span>Kişi</span>
+              <select name="contactId" required></select>
+            </label>
+            <label class="field">
+              <span>Saat</span>
+              <input name="time" type="time" required value="08:00" />
+            </label>
+            <label class="field">
+              <span>Mesaj kaynağı</span>
+              <select name="messageMode">
+                <option value="random">Rastgele (mesaj havuzu)</option>
+                <option value="fixed">Sabit mesaj</option>
+                <option value="ai">AI (Gemini) üretir</option>
+              </select>
+            </label>
+            <label class="field span-2 hidden" data-mode="fixed">
+              <span>Sabit mesaj</span>
+              <select name="messageId"></select>
+            </label>
+            <label class="field span-2 hidden" data-mode="ai">
+              <span>AI isteği</span>
+              <input name="aiPrompt" placeholder="kısa, romantik bir günaydın mesajı" />
+            </label>
+            <div class="field span-2">
+              <span>Günler</span>
+              <div class="days" id="day-toggles">
+                <label><input type="checkbox" name="days" value="mon" checked /><i>Pzt</i></label>
+                <label><input type="checkbox" name="days" value="tue" checked /><i>Sal</i></label>
+                <label><input type="checkbox" name="days" value="wed" checked /><i>Çar</i></label>
+                <label><input type="checkbox" name="days" value="thu" checked /><i>Per</i></label>
+                <label><input type="checkbox" name="days" value="fri" checked /><i>Cum</i></label>
+                <label><input type="checkbox" name="days" value="sat" checked /><i>Cmt</i></label>
+                <label><input type="checkbox" name="days" value="sun" checked /><i>Paz</i></label>
+              </div>
+            </div>
+            <label class="switch-row span-2">
+              <span>Aktif</span>
+              <input type="checkbox" name="enabled" checked class="switch" />
+            </label>
+            <div class="actions span-2">
+              <button type="button" id="automation-reset" class="btn btn-ghost">Temizle</button>
+              <button type="submit" class="btn btn-primary">Kaydet</button>
+            </div>
+          </form>
+        </div>
+        <ul id="automation-list" class="list"></ul>
+      </section>
+
+      <!-- Kişiler -->
+      <section id="tab-contacts" class="tab hidden">
+        <div class="card">
+          <div class="card-head"><h2>Kişi ekle</h2></div>
+          <form id="contact-form" class="form-grid">
+            <input type="hidden" name="id" />
+            <label class="field"><span>İsim</span><input name="name" required placeholder="İsim" /></label>
+            <label class="field"><span>Telefon</span><input name="phone" required placeholder="+905xxxxxxxxx" /></label>
+            <div class="actions span-2">
+              <button type="button" id="contact-reset" class="btn btn-ghost">Temizle</button>
+              <button type="submit" class="btn btn-primary">Kaydet</button>
+            </div>
+          </form>
+        </div>
+        <ul id="contact-list" class="list"></ul>
+      </section>
+
+      <!-- Mesajlar -->
+      <section id="tab-messages" class="tab hidden">
+        <div class="card">
+          <div class="card-head"><h2>Mesaj ekle</h2></div>
+          <form id="message-form" class="form-grid">
+            <input type="hidden" name="id" />
+            <label class="field span-2"><span>Metin</span><input name="text" required placeholder="Günaydın..." /></label>
+            <div class="actions span-2">
+              <button type="submit" class="btn btn-primary">Ekle</button>
+            </div>
+          </form>
+        </div>
+        <ul id="message-list" class="list"></ul>
+      </section>
+
+      <!-- Kayıtlar -->
+      <section id="tab-logs" class="tab hidden">
+        <ul id="log-list" class="list"></ul>
+      </section>
+
+      <!-- AI -->
+      <section id="tab-ai" class="tab hidden">
+        <div class="card center">
+          <div class="card-head"><h2>AI Otomatik Yanıt</h2></div>
+          <p class="muted">Gelen mesajlara Gemini ile otomatik cevap. Bu özellik hazırlanıyor.</p>
+          <button class="btn btn-ghost" disabled>Pasif · yakında</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script type="module" src="/assets/app.js"></script>
+</body>
+</html>

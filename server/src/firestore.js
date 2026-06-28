@@ -160,3 +160,16 @@ export async function getSettings() {
 export async function updateSettings(patch) {
   await settingsDoc().set(patch, { merge: true });
 }
+
+// Panelin "motor cevrimici" gostergesi icin periyodik kalp atisi.
+export async function writeHeartbeat() {
+  await settingsDoc().set({ engineHeartbeat: FieldValue.serverTimestamp() }, { merge: true });
+}
+
+// Otomasyonlar degisince motoru haberdar et (panelden ekleme/silme/guncelleme).
+export function watchAutomations(onChange) {
+  return automationsCol().onSnapshot(
+    () => onChange(),
+    (err) => logger.error({ err: err.message }, 'automations dinleyici hatasi.'),
+  );
+}

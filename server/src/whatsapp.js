@@ -11,11 +11,6 @@ import { logger } from './logger.js';
 
 let sock = null;
 let connectionState = 'disconnected'; // 'disconnected' | 'connecting' | 'qr' | 'open'
-let lastQrDataUrl = null;
-
-export function getStatus() {
-  return { state: connectionState, qr: connectionState === 'qr' ? lastQrDataUrl : null };
-}
 
 export async function startWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState(config.waAuthDir);
@@ -37,13 +32,13 @@ export async function startWhatsApp() {
 
     if (qr) {
       connectionState = 'qr';
-      lastQrDataUrl = await QRCode.toDataURL(qr);
-      logger.info('WhatsApp QR kodu hazir. Paneldeki QR ile telefondan okutun.');
+      // QR'i dogrudan terminale ASCII olarak yaz; telefondan bunu okut.
+      const ascii = await QRCode.toString(qr, { type: 'terminal', small: true });
+      console.log('\n=== WhatsApp QR kodu (telefondan okut) ===\n' + ascii);
     }
     if (connection === 'connecting') connectionState = 'connecting';
     if (connection === 'open') {
       connectionState = 'open';
-      lastQrDataUrl = null;
       logger.info('WhatsApp baglantisi acildi.');
     }
     if (connection === 'close') {
