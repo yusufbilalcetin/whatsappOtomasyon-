@@ -77,6 +77,7 @@ h1, h2 { margin: 0; }
 
 /* ---------- Giriş / Kayıt ---------- */
 .auth-view {
+  min-height: 100vh; /* dvh desteklemeyen eski Safari icin yedek */
   min-height: 100dvh;
   display: grid;
   place-items: center;
@@ -176,7 +177,7 @@ textarea { resize: vertical; min-height: 76px; }
 .btn:disabled { opacity: .55; cursor: default; }
 
 /* ---------- Uygulama düzeni ---------- */
-.app { min-height: 100dvh; display: flex; flex-direction: column; }
+.app { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
 .topbar {
   background: var(--wa-dark); color: #fff;
   display: flex; align-items: center; justify-content: space-between;
@@ -444,7 +445,12 @@ main {
   .pill { padding: 5px 10px; }
   .pill .pill-long { display: none; }
 
-  .workspace { flex-direction: column; }
+  /* iOS Safari'de ic ice flex + 100dvh + overflow:auto kalibi panel yuksekligini
+     bozuyordu. Mobilde paneli NORMAL sayfa akisina alip body'nin kaymasini saglariz
+     (drawer + backdrop position:fixed oldugu icin bundan etkilenmez). */
+  .app { display: block; }
+  .workspace { display: block; }
+  main { overflow: visible; min-height: 0; }
 
   /* Hamburger butonu (yalnizca mobil) */
   .menu-toggle { display: inline-flex; }
