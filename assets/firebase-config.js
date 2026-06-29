@@ -2,11 +2,11 @@
 // Bu apiKey gizli degildir; istemci tarafinda kullanilmasi normaldir.
 // Guvenlik Firestore kurallari ile saglanir.
 export const firebaseConfig = {
-  apiKey: "AIzaSyDk0VBdytVUoWUqY30c30Vkp3j1V9PK0-s",
-  authDomain: "aile-agaci-4b151.firebaseapp.com",
-  projectId: "aile-agaci-4b151",
-  storageBucket: "aile-agaci-4b151.firebasestorage.app",
-  messagingSenderId: "53844307822",
-  appId: "1:53844307822:web:d9815d83c7b2b8835f5b7f",
-  measurementId: "G-9RMN99D0M1",
+  apiKey: "AIzaSyB2uwSfJuhN-eKETPXqNTdHAAuX7Y9pCVs",
+  authDomain: "whatsappotomasyon-5d7a5.firebaseapp.com",
+  projectId: "whatsappotomasyon-5d7a5",
+  storageBucket: "whatsappotomasyon-5d7a5.firebasestorage.app",
+  messagingSenderId: "235132124425",
+  appId: "1:235132124425:web:5ea0ebca049aad7a0a67d8",
+  measurementId: "G-K7ZBHNQEZ4",
 };

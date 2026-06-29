@@ -101,6 +101,49 @@
             <div id="conn-body">
               <p class="muted" id="conn-text">Motor durumu kontrol ediliyor…</p>
               <img id="conn-qr" class="qr hidden" alt="QR kodu" />
+              <div id="pairing-panel" class="pairing-panel hidden">
+                <div class="li-title">Mobilde kod ile bağlan</div>
+                <form id="pairing-form" class="pairing-form">
+                  <label class="field">
+                    <span>Telefon numarası</span>
+                    <input name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+905xxxxxxxxx" required />
+                  </label>
+                  <button id="pairing-submit" type="submit" class="btn btn-primary">Kod al</button>
+                </form>
+                <div id="pairing-code-box" class="pairing-code-box hidden">
+                  <div>
+                    <div class="li-sub" id="pairing-phone-text"></div>
+                    <div class="pairing-code" id="pairing-code"></div>
+                  </div>
+                  <button id="pairing-copy-btn" type="button" class="btn btn-ghost btn-sm">Kopyala</button>
+                </div>
+                <p id="pairing-error" class="auth-error hidden"></p>
+                <div class="pairing-steps">
+                  <div class="pairing-os">
+                    <div class="pairing-os-title">📱 Android</div>
+                    <ol class="pairing-step-list">
+                      <li>Telefonda WhatsApp'ı aç.</li>
+                      <li>Sağ üstten <b>⋮ (üç nokta)</b> menüsünü aç.</li>
+                      <li><b>Bağlı cihazlar</b>'a gir.</li>
+                      <li><b>Cihaz bağla</b>'yı seç.</li>
+                      <li>QR kamera ekranı açılınca altta <b>Telefon numarasıyla bağla</b> seçeneğine dokun.</li>
+                      <li>Burada görünen kodu telefona gir.</li>
+                    </ol>
+                  </div>
+                  <div class="pairing-os">
+                    <div class="pairing-os-title">🍏 iPhone (iOS)</div>
+                    <ol class="pairing-step-list">
+                      <li>Telefonda WhatsApp'ı aç.</li>
+                      <li>Alt menüden <b>Ayarlar</b>'a gir.</li>
+                      <li><b>Bağlı cihazlar</b>'a gir.</li>
+                      <li><b>Cihaz bağla</b>'yı seç.</li>
+                      <li>QR kamera ekranı açılınca <b>Telefon numarasıyla bağla</b> seçeneğine dokun.</li>
+                      <li>Burada görünen kodu telefona gir.</li>
+                    </ol>
+                  </div>
+                </div>
+                <p class="muted small">Telefonunuza bildirim gelmesini beklemeyin. Kod burada görünür. Kod tek kullanımlıktır; yeni kod alırsanız önceki kod geçersiz olur. Kodu <b>2 dakika içinde</b> girin.</p>
+              </div>
             </div>
             <button id="wa-disconnect-btn" type="button" class="btn btn-danger hidden">WhatsApp bağlantısını kes</button>
             <p class="muted small">QR yalnızca motor çalışırken görünür. Telefonda WhatsApp → Bağlı cihazlar → Cihaz bağla ile okutun.</p>

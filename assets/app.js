@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import {
-  getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc,
+  initializeFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc,
   onSnapshot, query, orderBy, limit, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
 import {
@@ -10,7 +10,9 @@ import {
 import { firebaseConfig } from './firebase-config.js';
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});
 const auth = getAuth(app);
 
 const $ = (s) => document.querySelector(s);
@@ -21,6 +23,8 @@ let unsubs = [];
 let contacts = [];
 const selectedContactIdsState = new Set();
 let contactPickerOpen = false;
+const FIRESTORE_WRITE_TIMEOUT_MS = 10000;
+const PAIRING_WAIT_TIMEOUT_MS = 30000;
 
 const THEME_STORAGE_KEY = 'theme';
 const THEME_CHOICES = new Set(['light', 'dark', 'system']);
@@ -42,6 +46,49 @@ function toast(msg) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function firestoreErrorMessage(err) {
+  if (err?.code === 'permission-denied') {
+    return 'Firestore izin hatası. Kuralları Firebase Console üzerinden yayınlayın.';
+  }
+  if (err?.code === 'resource-exhausted') {
+    return 'Firestore kotası dolmuş. Kota sıfırlanana veya artırılana kadar yeni işlem yazılamaz.';
+  }
+  if (err?.code === 'unavailable' || !navigator.onLine) {
+    return 'İnternet bağlantısı yok. Bağlantı gelince veriler tekrar senkronize olur.';
+  }
+  return err?.message || 'Firestore bağlantı hatası.';
+}
+
+function handleFirestoreError(err) {
+  toast(firestoreErrorMessage(err));
+}
+
+window.addEventListener('offline', () => {
+  toast('İnternet bağlantısı koptu. Firestore geçici olarak bağlanamıyor.');
+});
+window.addEventListener('online', () => {
+  toast('İnternet bağlantısı geri geldi. Veriler senkronize ediliyor.');
+});
+
+function timeoutAfter(ms, message) {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(message)), ms);
+  });
+}
+
+function withTimeout(promise, ms, message) {
+  return Promise.race([promise, timeoutAfter(ms, message)]);
+}
+
+async function addCommand(payload, timeoutMessage = 'Komut Firestore’a gönderilemedi. İnternet bağlantısını kontrol edin.') {
+  if (!navigator.onLine) throw new Error('İnternet bağlantısı yok. Komut gönderilemedi.');
+  return withTimeout(
+    addDoc(uCol('commands'), { ...payload, createdAt: serverTimestamp() }),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    timeoutMessage,
+  );
 }
 
 // --- Tema ---
@@ -195,7 +242,7 @@ function renderAutomations(items) {
     const [test, edit, del] = li.querySelectorAll('button');
     test.onclick = async () => {
       try {
-        await addDoc(uCol('commands'), { type: 'runNow', automationId: a.id, createdAt: serverTimestamp() });
+        await addCommand({ type: 'runNow', automationId: a.id });
         toast('Gönderiliyor…');
       } catch (e) { toast(e.message); }
     };
@@ -451,6 +498,14 @@ function renderLogs(items) {
 
 // =================== Motor + WhatsApp durumu ===================
 let lastRenderedQr = null;
+let pairingWaitTimer = null;
+let pairingRequestPending = false;
+
+function formatPairingCode(code) {
+  const clean = String(code || '').replace(/\s+/g, '').toUpperCase();
+  return clean.length === 8 ? `${clean.slice(0, 4)}-${clean.slice(4)}` : clean;
+}
+
 function renderEngine(s = {}) {
   const beat = s.engineHeartbeat?.toDate ? s.engineHeartbeat.toDate() : null;
   const engineOnline = beat && (Date.now() - beat.getTime() < 3 * 60 * 1000);
@@ -464,9 +519,36 @@ function renderEngine(s = {}) {
   const text = $('#conn-text');
   const qr = $('#conn-qr');
   const disconnectBtn = $('#wa-disconnect-btn');
+  const pairingPanel = $('#pairing-panel');
+  const pairingForm = $('#pairing-form');
+  const pairingSubmit = $('#pairing-submit');
+  const pairingCodeBox = $('#pairing-code-box');
+  const pairingCode = $('#pairing-code');
+  const pairingPhoneText = $('#pairing-phone-text');
+  const pairingError = $('#pairing-error');
   const canResetWa = engineOnline && s.waState !== 'qr' && s.waState !== 'connecting';
+  const canRequestPairing = engineOnline && s.waState !== 'open';
   disconnectBtn.classList.toggle('hidden', !canResetWa);
   disconnectBtn.disabled = !canResetWa;
+  pairingPanel.classList.toggle('hidden', !canRequestPairing);
+  const rawPairingCode = canRequestPairing && typeof s.waPairingCode === 'string' ? s.waPairingCode : '';
+  pairingCodeBox.classList.toggle('hidden', !rawPairingCode);
+  pairingCode.textContent = formatPairingCode(rawPairingCode);
+  pairingCode.dataset.raw = rawPairingCode;
+  pairingPhoneText.textContent = s.waPairingPhone
+    ? `${s.waPairingPhone} için son kod oluşturuldu.`
+    : 'Eşleştirme kodu';
+  const pairingErr = canRequestPairing && typeof s.waPairingError === 'string' ? s.waPairingError : '';
+  pairingError.classList.toggle('hidden', !pairingErr);
+  pairingError.textContent = pairingErr;
+  if (rawPairingCode || pairingErr || s.waState === 'open') {
+    pairingRequestPending = false;
+    clearTimeout(pairingWaitTimer);
+    pairingWaitTimer = null;
+  }
+  pairingForm.elements.phone.disabled = !canRequestPairing || pairingRequestPending;
+  pairingSubmit.disabled = !canRequestPairing || pairingRequestPending;
+  pairingSubmit.textContent = pairingRequestPending ? 'Kod alınıyor…' : 'Kod al';
 
   // QR görselini yalnızca gerçekten değiştiğinde güncelle (sürekli yeniden yüklenip yanıp sönmesini önler).
   const showQr = engineOnline && s.waState === 'qr' && !!s.waQr;
@@ -488,7 +570,7 @@ function renderEngine(s = {}) {
 
 $('#contacts-sync-btn').onclick = async () => {
   try {
-    await addDoc(uCol('commands'), { type: 'syncContacts', createdAt: serverTimestamp() });
+    await addCommand({ type: 'syncContacts' });
     toast('Kişiler yeniden senkronize ediliyor…');
   } catch (e) { toast(e.message); }
 };
@@ -496,9 +578,56 @@ $('#contacts-sync-btn').onclick = async () => {
 $('#wa-disconnect-btn').onclick = async () => {
   if (!confirm('WhatsApp bağlantısı kesilsin ve yeni QR oluşturulsun mu?')) return;
   try {
-    await addDoc(uCol('commands'), { type: 'disconnectWhatsApp', createdAt: serverTimestamp() });
+    await addCommand({ type: 'disconnectWhatsApp' });
     toast('Bağlantı kesiliyor, QR hazırlanıyor…');
   } catch (e) { toast(e.message); }
+};
+
+// =================== Kod ile WhatsApp eslestirme ===================
+$('#pairing-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  let phone;
+  try { phone = normalizePhone(form.elements.phone.value); }
+  catch (err) { return toast(err.message); }
+  if (pairingRequestPending) return;
+  const btn = $('#pairing-submit');
+  pairingRequestPending = true;
+  btn.disabled = true;
+  btn.textContent = 'Kod alınıyor…';
+  $('#pairing-code-box').classList.add('hidden');
+  $('#pairing-error').classList.add('hidden');
+  try {
+    await addCommand(
+      { type: 'requestPairingCode', phone },
+      'Kod komutu Firestore’a gönderilemedi. İnternet bağlantısını kontrol edin.',
+    );
+    toast('Eşleştirme kodu isteniyor…');
+    toast('Kod isteği motora gönderildi. Bildirim beklemeyin; kod burada görünecek.');
+    clearTimeout(pairingWaitTimer);
+    pairingWaitTimer = setTimeout(() => {
+      pairingRequestPending = false;
+      btn.disabled = false;
+      btn.textContent = 'Kod al';
+      toast('Motor kodu döndürmedi. Motoru yeniden başlatıp tekrar deneyin.');
+    }, PAIRING_WAIT_TIMEOUT_MS);
+  } catch (err) {
+    pairingRequestPending = false;
+    btn.disabled = false;
+    btn.textContent = 'Kod al';
+    toast(err.message);
+  }
+};
+
+$('#pairing-copy-btn').onclick = async () => {
+  const code = $('#pairing-code')?.dataset.raw || '';
+  if (!code) return;
+  try {
+    await navigator.clipboard.writeText(code);
+    toast('Kod kopyalandı.');
+  } catch (err) {
+    toast('Kod kopyalanamadı.');
+  }
 };
 
 // =================== AI Otomatik Yanıt ===================
@@ -541,10 +670,22 @@ function startListeners() {
     const list = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     list.sort((a, b) => contactName(a).localeCompare(contactName(b), 'tr'));
     renderContacts(list);
-  }));
-  unsubs.push(onSnapshot(uCol('automations'), (s) => renderAutomations(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
-  unsubs.push(onSnapshot(query(uCol('logs'), orderBy('sentAt', 'desc'), limit(100)), (s) => renderLogs(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
-  unsubs.push(onSnapshot(userRef(), (d) => { const data = d.data() || {}; renderEngine(data); renderAiConfig(data); }));
+  }, handleFirestoreError));
+  unsubs.push(onSnapshot(
+    uCol('automations'),
+    (s) => renderAutomations(s.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    handleFirestoreError,
+  ));
+  unsubs.push(onSnapshot(
+    query(uCol('logs'), orderBy('sentAt', 'desc'), limit(100)),
+    (s) => renderLogs(s.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    handleFirestoreError,
+  ));
+  unsubs.push(onSnapshot(userRef(), (d) => {
+    const data = d.data() || {};
+    renderEngine(data);
+    renderAiConfig(data);
+  }, handleFirestoreError));
 }
 
 onAuthStateChanged(auth, async (user) => {

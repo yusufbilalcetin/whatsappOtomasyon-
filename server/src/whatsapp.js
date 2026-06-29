@@ -10,10 +10,11 @@ import QRCode from 'qrcode';
 import fs from 'node:fs/promises';
 import { config } from './config.js';
 import { logger } from './logger.js';
-import { setWhatsappStatus, clearUserData } from './firestore.js';
+import { setWhatsappStatus, setWhatsappPairing, clearUserData } from './firestore.js';
 
 // Her kullanici icin ayri WhatsApp oturumu. uid -> { sock, state }
 const sockets = new Map();
+const PAIRING_CODE_TTL_MS = 2 * 60 * 1000;
 
 // Gelen mesaj (AI otomatik-yanit) icin disaridan kaydedilen isleyici.
 let incomingHandler = null;
@@ -123,6 +124,81 @@ export async function resyncContactsFor(uid) {
   await syncGroups(uid, entry.sock);
 }
 
+async function trySetWhatsappPairing(uid, data, context) {
+  try {
+    await setWhatsappPairing(uid, data);
+    return true;
+  } catch (e) {
+    logger.warn({ uid, err: e.message, context }, 'WhatsApp eslestirme durumu Firestore yazilamadi.');
+    return false;
+  }
+}
+
+function authDirFor(uid) {
+  return `${config.waAuthDir}/${uid}`;
+}
+
+function closeSocket(uid, { resetting = false } = {}) {
+  const entry = sockets.get(uid);
+  if (!entry) return;
+  entry.manualClose = true;
+  entry.resetting = resetting;
+  try { entry.sock.end(); } catch { /* yoksay */ }
+  sockets.delete(uid);
+}
+
+export async function requestPairingCodeFor(uid, phone) {
+  let normalized = '';
+  try {
+    normalized = normalizePhone(phone);
+    const digits = normalized.replace('+', '');
+    let entry = sockets.get(uid);
+
+    if (entry?.state === 'open') {
+      throw new Error('WhatsApp zaten bagli.');
+    }
+
+    // Art arda iki kod uretmeyi engelle: ayni numara icin son kod 20 sn'den yeniyse
+    // tekrar uretme (her yeni kod oncekini gecersiz kilar; cift uretim 401/timeout'a sebep oluyordu).
+    if (
+      entry?.pairingMode &&
+      entry.pairingPhone === normalized &&
+      entry.pairingCodeCreatedAt &&
+      Date.now() - entry.pairingCodeCreatedAt < 20 * 1000
+    ) {
+      throw new Error('Az once bir kod uretildi. Paneldeki son kodu girin veya birkac saniye sonra tekrar deneyin.');
+    }
+
+    await trySetWhatsappPairing(uid, { phone: normalized, code: null, error: null }, 'start');
+
+    // Kodla eslestirmede yarim kalmis auth dosyasi (creds.me/pairingCode)
+    // sonraki denemeleri 401'e dusurebiliyor. Her yeni kod temiz oturumdan uretilir.
+    closeSocket(uid, { resetting: true });
+    await fs.rm(authDirFor(uid), { recursive: true, force: true });
+    await setWhatsappStatus(uid, 'connecting', null);
+    await startWhatsAppFor(uid, { pairingMode: true });
+    entry = sockets.get(uid);
+
+    if (!entry) throw new Error('WhatsApp motoru hazir degil.');
+    entry.pairingMode = true;
+    entry.pairingPhone = normalized;
+    entry.pairingRequestedAt = Date.now();
+
+    const code = await entry.sock.requestPairingCode(digits);
+    entry.pairingCodeCreatedAt = Date.now();
+    await trySetWhatsappPairing(uid, { phone: normalized, code, error: null }, 'code');
+    logger.info({ uid, phone: normalized }, 'WhatsApp eslestirme kodu olusturuldu.');
+    return code;
+  } catch (e) {
+    await trySetWhatsappPairing(uid, {
+      phone: normalized,
+      code: null,
+      error: e.message || 'Kod olusturulamadi.',
+    }, 'error');
+    throw e;
+  }
+}
+
 const startedAt = Math.floor(Date.now() / 1000); // motor baslamadan onceki mesajlari yoksay
 
 function extractText(msg) {
@@ -136,18 +212,24 @@ async function waVersion() {
   return cachedVersion;
 }
 
-async function clearAuthAndStartQr(uid) {
-  const authDir = `${config.waAuthDir}/${uid}`;
+async function clearAuthAndStartQr(uid, { clearPairing = true } = {}) {
+  const authDir = authDirFor(uid);
   await fs.rm(authDir, { recursive: true, force: true });
+  if (clearPairing) {
+    await trySetWhatsappPairing(uid, { phone: null, code: null, error: null }, 'clear');
+  }
   await setWhatsappStatus(uid, 'connecting', null);
   setTimeout(() => {
     startWhatsAppFor(uid).catch((e) => logger.error({ uid, err: e.message }, 'WhatsApp QR yeniden baslatilamadi.'));
   }, 1000);
 }
 
-export async function startWhatsAppFor(uid) {
+export async function startWhatsAppFor(uid, { pairingMode = false } = {}) {
   if (sockets.has(uid)) return; // zaten baglaniyor/bagli
-  const authDir = `${config.waAuthDir}/${uid}`;
+  if (!pairingMode) {
+    await trySetWhatsappPairing(uid, { phone: null, code: null, error: null }, 'start_qr');
+  }
+  const authDir = authDirFor(uid);
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const version = await waVersion();
 
@@ -157,9 +239,10 @@ export async function startWhatsAppFor(uid) {
     browser: Browsers.macOS('Desktop'),
     logger: logger.child({ module: 'baileys', uid }),
     markOnlineOnConnect: false,
+    ...(pairingMode ? { qrTimeout: PAIRING_CODE_TTL_MS } : {}),
     syncFullHistory: true, // ilk senkronda kisi listesi + isimlerin (notify) gelmesi icin gerekli
   });
-  const entry = { sock, state: 'connecting', lastQr: null };
+  const entry = { sock, state: 'connecting', lastQr: null, pairingMode };
   sockets.set(uid, entry);
 
   sock.ev.on('creds.update', saveCreds);
@@ -210,9 +293,14 @@ export async function startWhatsAppFor(uid) {
     // QR her donusumde (~20 sn) yenilenir; panel her zaman gecerli kodu gosterir.
     if (qr && qr !== entry.lastQr) {
       entry.lastQr = qr;
-      entry.state = 'qr';
-      const dataUrl = await QRCode.toDataURL(qr, { margin: 1, width: 320 });
-      setWhatsappStatus(uid, 'qr', dataUrl).catch((e) => logger.warn(e, 'QR yazilamadi.'));
+      if (entry.pairingMode) {
+        entry.state = 'pairing';
+        setWhatsappStatus(uid, 'connecting', null).catch(() => {});
+      } else {
+        entry.state = 'qr';
+        const dataUrl = await QRCode.toDataURL(qr, { margin: 1, width: 320 });
+        setWhatsappStatus(uid, 'qr', dataUrl).catch((e) => logger.warn(e, 'QR yazilamadi.'));
+      }
     }
     // 'connecting' QR'i SILMEZ; sadece zaten farkli bir durumdaysak yaz (gereksiz yazimi onler).
     if (connection === 'connecting' && entry.state !== 'connecting' && entry.state !== 'qr') {
@@ -242,9 +330,30 @@ export async function startWhatsAppFor(uid) {
       const qrTimedOut = statusCode === DisconnectReason.timedOut && !!entry.lastQr;
       // 515: eslesme sonrasi yeniden baslatma gerekli (hizli yeniden bagla).
       const restartRequired = statusCode === DisconnectReason.restartRequired;
-      logger.warn({ uid, statusCode, loggedOut, manualClose, resetting, qrTimedOut, restartRequired }, 'WhatsApp baglantisi kapandi.');
+      const pairingMode = !!entry.pairingMode;
+      logger.warn({ uid, statusCode, loggedOut, manualClose, resetting, qrTimedOut, restartRequired, pairingMode }, 'WhatsApp baglantisi kapandi.');
       sockets.delete(uid);
       if (resetting || manualClose) return;
+      if (pairingMode && loggedOut) {
+        await trySetWhatsappPairing(uid, {
+          phone: entry.pairingPhone,
+          code: null,
+          error: 'Kod kabul edilmedi veya suresi doldu. Yeni kod alip son kodu telefona girin.',
+        }, 'logged_out');
+        clearAuthAndStartQr(uid, { clearPairing: false }).catch((e) =>
+          logger.error({ uid, err: e.message }, 'Kod hatasi sonrasi QR baslatilamadi.'));
+        return;
+      }
+      if (pairingMode && qrTimedOut) {
+        await trySetWhatsappPairing(uid, {
+          phone: entry.pairingPhone,
+          code: null,
+          error: 'Kodun suresi doldu. Yeni kod alin ve 2 dakika icinde telefona girin.',
+        }, 'expired');
+        clearAuthAndStartQr(uid, { clearPairing: false }).catch((e) =>
+          logger.error({ uid, err: e.message }, 'Kod suresi sonrasi QR baslatilamadi.'));
+        return;
+      }
       if (loggedOut) {
         clearAuthAndStartQr(uid).catch((e) =>
           logger.error({ uid, err: e.message }, 'Logged out sonrasi QR baslatilamadi.'));
@@ -264,12 +373,7 @@ export async function startWhatsAppFor(uid) {
 }
 
 export function stopWhatsAppFor(uid) {
-  const entry = sockets.get(uid);
-  if (entry) {
-    entry.manualClose = true;
-    try { entry.sock.end(); } catch { /* yoksay */ }
-    sockets.delete(uid);
-  }
+  closeSocket(uid);
   setWhatsappStatus(uid, 'disconnected', null).catch(() => {});
 }
 

@@ -155,6 +155,19 @@ export function watchUserDoc(uid, onChange) {
 export async function setWhatsappStatus(uid, waState, waQr) {
   const data = { waState, waUpdated: FieldValue.serverTimestamp() };
   if (waQr !== undefined) data.waQr = waQr;
+  if (['open', 'disconnected', 'logged_out'].includes(waState)) {
+    data.waPairingCode = FieldValue.delete();
+    data.waPairingPhone = FieldValue.delete();
+    data.waPairingError = FieldValue.delete();
+    data.waPairingUpdated = FieldValue.delete();
+  }
+  await userDoc(uid).set(data, { merge: true });
+}
+export async function setWhatsappPairing(uid, { code, phone, error } = {}) {
+  const data = { waPairingUpdated: FieldValue.serverTimestamp() };
+  if (code !== undefined) data.waPairingCode = code || FieldValue.delete();
+  if (phone !== undefined) data.waPairingPhone = phone || FieldValue.delete();
+  if (error !== undefined) data.waPairingError = error || FieldValue.delete();
   await userDoc(uid).set(data, { merge: true });
 }
 export async function writeHeartbeat(uid) {

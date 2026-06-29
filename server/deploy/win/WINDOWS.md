@@ -9,7 +9,7 @@ kapatıp telefondan yönetebilirsin.
 
 ## Önkoşullar
 1. `server\.env` dolu (var).
-2. **`server\service-account.json`** — yeni Firebase projesi (`aile-agaci-4b151`) için
+2. **`server\service-account.json`** — yeni Firebase projesi (`whatsappotomasyon-5d7a5`) için
    gerekli. Firebase Console → ⚙️ Project Settings → **Service accounts** →
    **Generate new private key** → inen dosyayı `server\service-account.json` olarak kaydet.
    Bu olmadan motor Firestore'a bağlanamaz.
