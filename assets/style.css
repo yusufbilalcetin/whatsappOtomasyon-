@@ -516,8 +516,8 @@ main {
 
   .toast { bottom: calc(24px + env(safe-area-inset-bottom)); }
 
-  /* Liste satırlarında butonlar taşmasın */
-  .list > li { flex-wrap: wrap; }
+  /* Liste satırları: uzun isim metin içinde sarar, aksiyon butonu sağ üstte sabit kalır */
+  .list > li { align-items: flex-start; }
   .li-actions { flex-shrink: 0; }
 }
 
