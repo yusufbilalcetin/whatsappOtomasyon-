@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#075E54" />
   <title>WhatsApp Otomasyon</title>
+  <!-- Temayi boyamadan ONCE uygula (yanip sonmeyi onler) -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme') || 'system';
+        if (['light', 'dark', 'system'].indexOf(t) === -1) t = 'system';
+        var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.dataset.themeChoice = t;
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      } catch (e) {}
+    })();
+  </script>
   <link rel="preconnect" href="https://www.gstatic.com" />
   <link rel="stylesheet" href="/assets/style.css" />
 </head>
@@ -77,6 +90,7 @@
         <button class="seg" data-tab="contacts"><span class="seg-ico">👤</span><span class="seg-txt">Kişiler</span></button>
         <button class="seg" data-tab="logs"><span class="seg-ico">📋</span><span class="seg-txt">Kayıtlar</span></button>
         <button class="seg" data-tab="ai"><span class="seg-ico">🤖</span><span class="seg-txt">AI Yanıt</span></button>
+        <button class="seg" data-tab="settings"><span class="seg-ico">⚙️</span><span class="seg-txt">Ayarlar</span></button>
       </nav>
 
       <main>
@@ -210,6 +224,24 @@
               </div>
             </form>
             <p class="muted small">Not: Gemini API anahtarı motorda tanımlı olmalı (.env → GEMINI_API_KEY).</p>
+          </div>
+        </section>
+
+        <!-- Ayarlar -->
+        <section id="tab-settings" class="tab hidden">
+          <div class="card">
+            <div class="card-head"><h2>Ayarlar</h2></div>
+            <div class="setting-row">
+              <div>
+                <div class="li-title">Tema</div>
+                <div class="li-sub">Görünümü açık, koyu veya cihaz (sistem) ayarına göre seç.</div>
+              </div>
+              <div class="theme-switch" id="theme-switch" role="group" aria-label="Tema seçimi">
+                <button type="button" class="theme-opt" data-theme-choice="light">☀️ Açık</button>
+                <button type="button" class="theme-opt" data-theme-choice="dark">🌙 Koyu</button>
+                <button type="button" class="theme-opt" data-theme-choice="system">🖥️ Sistem</button>
+              </div>
+            </div>
           </div>
         </section>
       </main>

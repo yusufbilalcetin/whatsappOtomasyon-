@@ -22,6 +22,10 @@ let contacts = [];
 const selectedContactIdsState = new Set();
 let contactPickerOpen = false;
 
+const THEME_STORAGE_KEY = 'theme';
+const THEME_CHOICES = new Set(['light', 'dark', 'system']);
+const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
 // Kullaniciya ozel koleksiyon/dokuman referanslari
 const uCol = (name) => collection(db, 'users', uid, name);
 const uItem = (name, id) => doc(db, 'users', uid, name, id);
@@ -39,6 +43,52 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
+
+// --- Tema ---
+function getThemeChoice() {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    return THEME_CHOICES.has(stored) ? stored : 'system';
+  } catch (e) {
+    return 'system';
+  }
+}
+
+function resolveTheme(choice) {
+  return choice === 'dark' || (choice === 'system' && systemThemeQuery.matches) ? 'dark' : 'light';
+}
+
+function renderTheme(choice = getThemeChoice()) {
+  const resolved = resolveTheme(choice);
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.themeChoice = choice;
+  document.documentElement.style.colorScheme = resolved;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#1f2c33' : '#075E54');
+
+  $$('.theme-opt').forEach((btn) => {
+    const active = btn.dataset.themeChoice === choice;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+function setThemeChoice(choice) {
+  if (!THEME_CHOICES.has(choice)) return;
+  try { localStorage.setItem(THEME_STORAGE_KEY, choice); } catch (e) { /* yoksay */ }
+  renderTheme(choice);
+  toast('Tema ayarı kaydedildi.');
+}
+
+$$('.theme-opt').forEach((btn) => {
+  btn.onclick = () => setThemeChoice(btn.dataset.themeChoice);
+});
+
+const onSystemThemeChange = () => {
+  if (getThemeChoice() === 'system') renderTheme('system');
+};
+if (systemThemeQuery.addEventListener) systemThemeQuery.addEventListener('change', onSystemThemeChange);
+else if (systemThemeQuery.addListener) systemThemeQuery.addListener(onSystemThemeChange);
+renderTheme();
 
 // --- Telefon dogrulama ---
 function normalizePhone(phone) {
