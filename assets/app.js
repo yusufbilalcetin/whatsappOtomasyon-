@@ -190,6 +190,27 @@ function matchesContact(c, term) {
     .some((v) => searchText(v).includes(q));
 }
 
+// Tek bir kişi/grup satırı oluşturur.
+function buildContactLi(c) {
+  const li = document.createElement('li');
+  const renamed = c.customName ? ' <span class="badge ok">özel ad</span>' : '';
+  li.innerHTML = `
+    <div class="li-main"><div class="li-title">${contactName(c)}${renamed}</div><div class="li-sub">${contactDetail(c)}</div></div>
+    <div class="li-actions">
+      <button class="icon-btn" title="İsim ver / düzenle">✎</button>
+    </div>`;
+  li.querySelector('button').onclick = () => startRenameContact(li, c);
+  return li;
+}
+
+// Bir kategori başlığı (Kişiler / Gruplar) oluşturur.
+function categoryHeader(title, count) {
+  const li = document.createElement('li');
+  li.className = 'list-category';
+  li.innerHTML = `<div class="li-sub"><strong>${title}</strong> (${count})</div>`;
+  return li;
+}
+
 function renderContactList() {
   const ul = $('#contact-list');
   const term = $('#contact-search')?.value || '';
@@ -205,17 +226,17 @@ function renderContactList() {
     return;
   }
 
-  filtered.forEach((c) => {
-    const li = document.createElement('li');
-    const renamed = c.customName ? ' <span class="badge ok">özel ad</span>' : '';
-    li.innerHTML = `
-      <div class="li-main"><div class="li-title">${contactName(c)}${renamed}</div><div class="li-sub">${contactDetail(c)}</div></div>
-      <div class="li-actions">
-        <button class="icon-btn" title="İsim ver / düzenle">✎</button>
-      </div>`;
-    li.querySelector('button').onclick = () => startRenameContact(li, c);
-    ul.appendChild(li);
-  });
+  const groups = filtered.filter((c) => c.type === 'group');
+  const people = filtered.filter((c) => c.type !== 'group');
+
+  if (people.length) {
+    ul.appendChild(categoryHeader('Kişiler', people.length));
+    people.forEach((c) => ul.appendChild(buildContactLi(c)));
+  }
+  if (groups.length) {
+    ul.appendChild(categoryHeader('Gruplar', groups.length));
+    groups.forEach((c) => ul.appendChild(buildContactLi(c)));
+  }
 }
 
 // Kişiye panelden özel ad ver (WhatsApp isim getirmediğinde). customName WhatsApp senkronunda korunur.
@@ -309,10 +330,20 @@ function renderContactPicker() {
   options.classList.remove('hidden');
 }
 
+// Kişi senkronu sırasında çok sık güncelleme gelir; yeniden çizimi geciktirip
+// birleştir (debounce) ki ekran sürekli yenilenmiş gibi sıçramasın.
+let contactsRenderTimer;
 function renderContacts(items) {
-  contacts = items;
-  renderContactList();
-  renderContactPicker();
+  contacts = items; // veri hemen guncel olsun (arama/secim son veriyi kullansin)
+  clearTimeout(contactsRenderTimer);
+  contactsRenderTimer = setTimeout(() => {
+    // Kullanıcı arama yazıyor veya isim düzenliyorsa listeyi bozma.
+    const el = document.activeElement;
+    const busy = el && (el.id === 'contact-search' || el.classList.contains('rename-input'));
+    if (busy) return;
+    renderContactList();
+    renderContactPicker();
+  }, 800);
 }
 
 $('#contact-search').oninput = renderContactList;
