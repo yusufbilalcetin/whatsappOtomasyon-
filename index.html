@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#075E54" />
   <title>WhatsApp Otomasyon</title>
   <link rel="preconnect" href="https://www.gstatic.com" />
   <link rel="stylesheet" href="/assets/style.css" />
@@ -12,7 +13,9 @@
   <div id="auth-view" class="auth-view hidden">
     <div class="auth-card">
       <div class="auth-brand">
-        <div class="brand-mark"></div>
+        <div class="brand-mark">
+          <svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><path fill="currentColor" d="M16 3C9.4 3 4 8.4 4 15c0 2.3.6 4.4 1.8 6.3L4 29l7.9-1.7c1.8 1 3.9 1.5 6.1 1.5 6.6 0 12-5.4 12-12S22.6 3 16 3zm0 21.8c-1.9 0-3.7-.5-5.3-1.5l-.4-.2-4.1.9.9-4-.3-.4c-1.1-1.7-1.6-3.6-1.6-5.6 0-5.6 4.6-10.2 10.2-10.2S26.2 9.4 26.2 15 21.6 24.8 16 24.8z"/><path fill="currentColor" d="M21.6 17.7c-.3-.2-1.8-.9-2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.2-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.5c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.2-.3-.2-.6-.4z"/></svg>
+        </div>
         <h1>WhatsApp Otomasyon</h1>
         <p class="muted" id="auth-subtitle">Hesabınıza giriş yapın</p>
       </div>
@@ -51,7 +54,9 @@
   <div id="app-view" class="app hidden">
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark"></div>
+        <div class="brand-mark">
+          <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M16 3C9.4 3 4 8.4 4 15c0 2.3.6 4.4 1.8 6.3L4 29l7.9-1.7c1.8 1 3.9 1.5 6.1 1.5 6.6 0 12-5.4 12-12S22.6 3 16 3z"/></svg>
+        </div>
         <span>WhatsApp Otomasyon</span>
       </div>
       <div class="topbar-right">
@@ -65,147 +70,150 @@
       </div>
     </header>
 
-    <nav class="segmented" role="tablist">
-      <button class="seg active" data-tab="connection">Bağlantı</button>
-      <button class="seg" data-tab="automations">Otomasyonlar</button>
-      <button class="seg" data-tab="contacts">Kişiler</button>
-      <button class="seg" data-tab="logs">Kayıtlar</button>
-      <button class="seg" data-tab="ai">AI Yanıt</button>
-    </nav>
+    <div class="workspace">
+      <nav class="segmented" role="tablist" aria-label="Bölümler">
+        <button class="seg active" data-tab="connection"><span class="seg-ico">🔗</span><span class="seg-txt">Bağlantı</span></button>
+        <button class="seg" data-tab="automations"><span class="seg-ico">⏰</span><span class="seg-txt">Otomasyonlar</span></button>
+        <button class="seg" data-tab="contacts"><span class="seg-ico">👤</span><span class="seg-txt">Kişiler</span></button>
+        <button class="seg" data-tab="logs"><span class="seg-ico">📋</span><span class="seg-txt">Kayıtlar</span></button>
+        <button class="seg" data-tab="ai"><span class="seg-ico">🤖</span><span class="seg-txt">AI Yanıt</span></button>
+      </nav>
 
-    <main>
-      <!-- Bağlantı -->
-      <section id="tab-connection" class="tab">
-        <div class="card center">
-          <div class="card-head"><h2>WhatsApp bağlantısı</h2></div>
-          <div id="conn-body">
-            <p class="muted" id="conn-text">Motor durumu kontrol ediliyor…</p>
-            <img id="conn-qr" class="qr hidden" alt="QR kodu" />
+      <main>
+        <!-- Bağlantı -->
+        <section id="tab-connection" class="tab">
+          <div class="card center">
+            <div class="card-head"><h2>WhatsApp bağlantısı</h2></div>
+            <div id="conn-body">
+              <p class="muted" id="conn-text">Motor durumu kontrol ediliyor…</p>
+              <img id="conn-qr" class="qr hidden" alt="QR kodu" />
+            </div>
+            <button id="wa-disconnect-btn" type="button" class="btn btn-danger hidden">WhatsApp bağlantısını kes</button>
+            <p class="muted small">QR yalnızca motor çalışırken görünür. Telefonda WhatsApp → Bağlı cihazlar → Cihaz bağla ile okutun.</p>
           </div>
-          <button id="wa-disconnect-btn" type="button" class="btn btn-danger hidden">WhatsApp bağlantısını kes</button>
-          <p class="muted small">QR yalnızca motor çalışırken görünür. Telefonda WhatsApp → Bağlı cihazlar → Cihaz bağla ile okutun.</p>
-        </div>
-      </section>
+        </section>
 
-      <!-- Otomasyonlar -->
-      <section id="tab-automations" class="tab hidden">
-        <div class="card">
-          <div class="card-head">
-            <h2 id="automation-title">Yeni otomasyon</h2>
-          </div>
-          <form id="automation-form" class="form-grid">
-            <input type="hidden" name="id" />
-            <label class="field">
-              <span>İsim</span>
-              <input name="name" required placeholder="Sabah mesajı" />
-            </label>
-            <div class="field span-2">
-              <span>Kişiler (bir veya birden fazla)</span>
-              <div class="contact-picker" id="contact-picker">
-                <input id="contact-picker-input" type="search" autocomplete="off" placeholder="Kişi veya grup ara" />
-                <div id="contact-picker-options" class="contact-picker-options hidden"></div>
-                <div id="selected-contacts" class="selected-contacts"></div>
+        <!-- Otomasyonlar -->
+        <section id="tab-automations" class="tab hidden">
+          <div class="card">
+            <div class="card-head">
+              <h2 id="automation-title">Yeni otomasyon</h2>
+            </div>
+            <form id="automation-form" class="form-grid">
+              <input type="hidden" name="id" />
+              <label class="field">
+                <span>İsim</span>
+                <input name="name" required placeholder="Sabah mesajı" />
+              </label>
+              <div class="field span-2">
+                <span>Kişiler (bir veya birden fazla)</span>
+                <div class="contact-picker" id="contact-picker">
+                  <input id="contact-picker-input" type="search" autocomplete="off" placeholder="Kişi veya grup ara" />
+                  <div id="contact-picker-options" class="contact-picker-options hidden"></div>
+                  <div id="selected-contacts" class="selected-contacts"></div>
+                </div>
               </div>
-            </div>
-            <label class="field">
-              <span>Saat</span>
-              <input name="time" type="time" required value="08:00" />
-            </label>
-            <label class="field">
-              <span>Mesaj kaynağı</span>
-              <select name="messageMode">
-                <option value="fixed">Kendi mesajım</option>
-                <option value="ai">AI (Gemini) yazsın</option>
-              </select>
-            </label>
-            <label class="field span-2" data-mode="fixed">
-              <span>Mesaj</span>
-              <textarea name="messageText" rows="3" placeholder="Günaydın güzelim, umarım bugün yüzün hep güler ❤️"></textarea>
-            </label>
-            <label class="field span-2 hidden" data-mode="ai">
-              <span>AI isteği</span>
-              <input name="aiPrompt" placeholder="kısa, romantik bir günaydın mesajı" />
-            </label>
-            <div class="field span-2">
-              <span>Günler</span>
-              <div class="days" id="day-toggles">
-                <label><input type="checkbox" name="days" value="mon" checked /><i>Pzt</i></label>
-                <label><input type="checkbox" name="days" value="tue" checked /><i>Sal</i></label>
-                <label><input type="checkbox" name="days" value="wed" checked /><i>Çar</i></label>
-                <label><input type="checkbox" name="days" value="thu" checked /><i>Per</i></label>
-                <label><input type="checkbox" name="days" value="fri" checked /><i>Cum</i></label>
-                <label><input type="checkbox" name="days" value="sat" checked /><i>Cmt</i></label>
-                <label><input type="checkbox" name="days" value="sun" checked /><i>Paz</i></label>
+              <label class="field">
+                <span>Saat</span>
+                <input name="time" type="time" required value="08:00" />
+              </label>
+              <label class="field">
+                <span>Mesaj kaynağı</span>
+                <select name="messageMode">
+                  <option value="fixed">Kendi mesajım</option>
+                  <option value="ai">AI (Gemini) yazsın</option>
+                </select>
+              </label>
+              <label class="field span-2" data-mode="fixed">
+                <span>Mesaj</span>
+                <textarea name="messageText" rows="3" placeholder="Günaydın güzelim, umarım bugün yüzün hep güler ❤️"></textarea>
+              </label>
+              <label class="field span-2 hidden" data-mode="ai">
+                <span>AI isteği</span>
+                <input name="aiPrompt" placeholder="kısa, romantik bir günaydın mesajı" />
+              </label>
+              <div class="field span-2">
+                <span>Günler</span>
+                <div class="days" id="day-toggles">
+                  <label><input type="checkbox" name="days" value="mon" checked /><i>Pzt</i></label>
+                  <label><input type="checkbox" name="days" value="tue" checked /><i>Sal</i></label>
+                  <label><input type="checkbox" name="days" value="wed" checked /><i>Çar</i></label>
+                  <label><input type="checkbox" name="days" value="thu" checked /><i>Per</i></label>
+                  <label><input type="checkbox" name="days" value="fri" checked /><i>Cum</i></label>
+                  <label><input type="checkbox" name="days" value="sat" checked /><i>Cmt</i></label>
+                  <label><input type="checkbox" name="days" value="sun" checked /><i>Paz</i></label>
+                </div>
               </div>
-            </div>
-            <label class="switch-row span-2">
-              <span>Aktif</span>
-              <input type="checkbox" name="enabled" checked class="switch" />
-            </label>
-            <div class="actions span-2">
-              <button type="button" id="automation-reset" class="btn btn-ghost">Temizle</button>
-              <button type="submit" class="btn btn-primary">Kaydet</button>
-            </div>
-          </form>
-        </div>
-        <ul id="automation-list" class="list"></ul>
-      </section>
-
-      <!-- Kişiler -->
-      <section id="tab-contacts" class="tab hidden">
-        <div class="card">
-          <div class="card-head">
-            <h2>WhatsApp kişileri ve grupları</h2>
-            <button id="contacts-sync-btn" type="button" class="btn btn-ghost">Kişileri yeniden senkronize et</button>
+              <label class="switch-row span-2">
+                <span>Aktif</span>
+                <input type="checkbox" name="enabled" checked class="switch" />
+              </label>
+              <div class="actions span-2">
+                <button type="button" id="automation-reset" class="btn btn-ghost">Temizle</button>
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+              </div>
+            </form>
           </div>
-          <p class="muted">Kişiler ve gruplar WhatsApp bağlandıktan sonra otomatik çekilir. İsimler telefonunuzda kayıtlı olduğu şekilde gelir. Yeni kişi kaydettiyseniz bu butonla güncelleyin.</p>
-          <label class="field">
-            <span>Ara</span>
-            <input id="contact-search" type="search" autocomplete="off" placeholder="İsim veya telefon ara" />
-          </label>
-          <form id="contact-add-form" class="form-grid">
-            <label class="field"><span>İsim</span>
-              <input name="name" required placeholder="Örn: Annem" />
-            </label>
-            <label class="field"><span>Telefon</span>
-              <input name="phone" required placeholder="+905xxxxxxxxx" />
-            </label>
-            <div class="actions span-2">
-              <button type="submit" class="btn btn-primary">Kişi ekle</button>
-            </div>
-          </form>
-        </div>
-        <ul id="contact-list" class="list"></ul>
-      </section>
+          <ul id="automation-list" class="list"></ul>
+        </section>
 
-      <!-- Kayıtlar -->
-      <section id="tab-logs" class="tab hidden">
-        <ul id="log-list" class="list"></ul>
-      </section>
-
-      <!-- AI -->
-      <section id="tab-ai" class="tab hidden">
-        <div class="card">
-          <div class="card-head"><h2>AI Otomatik Yanıt</h2></div>
-          <p class="muted">Sana gelen WhatsApp mesajlarına Gemini otomatik cevap versin. Yalnızca birebir sohbetlerde çalışır.</p>
-          <form id="ai-form" class="form-grid">
-            <label class="switch-row span-2"><span>Otomatik yanıtı aç</span>
-              <input type="checkbox" name="enabled" class="switch" />
-            </label>
-            <label class="field span-2"><span>Karakter / üslup (persona)</span>
-              <textarea name="persona" rows="3" placeholder="Örn: Kibar, samimi ve kısa cevap veren bir asistan gibi yaz."></textarea>
-            </label>
-            <label class="switch-row span-2"><span>Sadece kayıtlı kişilere yanıt ver</span>
-              <input type="checkbox" name="onlyContacts" class="switch" />
-            </label>
-            <div class="actions span-2">
-              <button type="submit" class="btn btn-primary">Kaydet</button>
+        <!-- Kişiler -->
+        <section id="tab-contacts" class="tab hidden">
+          <div class="card">
+            <div class="card-head">
+              <h2>WhatsApp kişileri ve grupları</h2>
+              <button id="contacts-sync-btn" type="button" class="btn btn-ghost">Yeniden senkronize et</button>
             </div>
-          </form>
-          <p class="muted small">Not: Gemini API anahtarı motorda tanımlı olmalı (.env → GEMINI_API_KEY).</p>
-        </div>
-      </section>
-    </main>
+            <p class="muted">Kişiler ve gruplar WhatsApp bağlandıktan sonra otomatik çekilir. İsimler telefonunuzda kayıtlı olduğu şekilde gelir. Yeni kişi kaydettiyseniz bu butonla güncelleyin.</p>
+            <label class="field">
+              <span>Ara</span>
+              <input id="contact-search" type="search" autocomplete="off" placeholder="İsim veya telefon ara" />
+            </label>
+            <form id="contact-add-form" class="form-grid">
+              <label class="field"><span>İsim</span>
+                <input name="name" required placeholder="Örn: Annem" />
+              </label>
+              <label class="field"><span>Telefon</span>
+                <input name="phone" required placeholder="+905xxxxxxxxx" />
+              </label>
+              <div class="actions span-2">
+                <button type="submit" class="btn btn-primary">Kişi ekle</button>
+              </div>
+            </form>
+          </div>
+          <ul id="contact-list" class="list"></ul>
+        </section>
+
+        <!-- Kayıtlar -->
+        <section id="tab-logs" class="tab hidden">
+          <div class="card-head card-head--bare"><h2>Gönderim kayıtları</h2></div>
+          <ul id="log-list" class="list"></ul>
+        </section>
+
+        <!-- AI -->
+        <section id="tab-ai" class="tab hidden">
+          <div class="card">
+            <div class="card-head"><h2>AI Otomatik Yanıt</h2></div>
+            <p class="muted">Sana gelen WhatsApp mesajlarına Gemini otomatik cevap versin. Yalnızca birebir sohbetlerde çalışır.</p>
+            <form id="ai-form" class="form-grid">
+              <label class="switch-row span-2"><span>Otomatik yanıtı aç</span>
+                <input type="checkbox" name="enabled" class="switch" />
+              </label>
+              <label class="field span-2"><span>Karakter / üslup (persona)</span>
+                <textarea name="persona" rows="3" placeholder="Örn: Kibar, samimi ve kısa cevap veren bir asistan gibi yaz."></textarea>
+              </label>
+              <label class="switch-row span-2"><span>Sadece kayıtlı kişilere yanıt ver</span>
+                <input type="checkbox" name="onlyContacts" class="switch" />
+              </label>
+              <div class="actions span-2">
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+              </div>
+            </form>
+            <p class="muted small">Not: Gemini API anahtarı motorda tanımlı olmalı (.env → GEMINI_API_KEY).</p>
+          </div>
+        </section>
+      </main>
+    </div>
 
     <div id="toast" class="toast"></div>
   </div>
