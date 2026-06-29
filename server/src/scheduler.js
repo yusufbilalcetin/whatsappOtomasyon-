@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { config } from './config.js';
 import { logger } from './logger.js';
 import { listAutomations, getContact, addLog, markAutomationRun } from './firestore.js';
-import { sendMessageFor } from './whatsapp.js';
+import { sendMessageFor, sendRawTo } from './whatsapp.js';
 import { generateMessage } from './gemini.js';
 
 const DAY_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
@@ -74,7 +74,10 @@ async function runAutomation(uid, automation) {
       continue;
     }
     try {
-      const { phone } = await sendMessageFor(uid, contact.phone, text);
+      // Grup veya senkron kisi: jid varsa dogrudan; yoksa telefondan.
+      let phone = contact.phone || '';
+      if (contact.jid) await sendRawTo(uid, contact.jid, text);
+      else ({ phone } = await sendMessageFor(uid, contact.phone, text));
       anySuccess = true;
       await addLog(uid, {
         automationId: automation.id, contactName: contact.name, phone,
@@ -108,7 +111,8 @@ export async function reloadSchedulesFor(uid) {
   }
   const automations = await listAutomations(uid);
   for (const a of automations) {
-    if (a.enabled && a.time && a.contactId) scheduleOne(uid, a);
+    const hasContacts = a.contactIds?.length || a.contactId;
+    if (a.enabled && a.time && hasContacts) scheduleOne(uid, a);
   }
   logger.info({ uid, count: automations.length }, 'Zamanlamalar yuklendi.');
 }

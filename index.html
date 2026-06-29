@@ -82,6 +82,7 @@
             <p class="muted" id="conn-text">Motor durumu kontrol ediliyor…</p>
             <img id="conn-qr" class="qr hidden" alt="QR kodu" />
           </div>
+          <button id="wa-disconnect-btn" type="button" class="btn btn-danger hidden">WhatsApp bağlantısını kes</button>
           <p class="muted small">QR yalnızca motor çalışırken görünür. Telefonda WhatsApp → Bağlı cihazlar → Cihaz bağla ile okutun.</p>
         </div>
       </section>
@@ -100,7 +101,11 @@
             </label>
             <div class="field span-2">
               <span>Kişiler (bir veya birden fazla)</span>
-              <div class="contact-checks" id="contact-checks"></div>
+              <div class="contact-picker" id="contact-picker">
+                <input id="contact-picker-input" type="search" autocomplete="off" placeholder="Kişi veya grup ara" />
+                <div id="contact-picker-options" class="contact-picker-options hidden"></div>
+                <div id="selected-contacts" class="selected-contacts"></div>
+              </div>
             </div>
             <label class="field">
               <span>Saat</span>
@@ -149,16 +154,12 @@
       <!-- Kişiler -->
       <section id="tab-contacts" class="tab hidden">
         <div class="card">
-          <div class="card-head"><h2>Kişi ekle</h2></div>
-          <form id="contact-form" class="form-grid">
-            <input type="hidden" name="id" />
-            <label class="field"><span>İsim</span><input name="name" required placeholder="İsim" /></label>
-            <label class="field"><span>Telefon</span><input name="phone" required placeholder="+905xxxxxxxxx" /></label>
-            <div class="actions span-2">
-              <button type="button" id="contact-reset" class="btn btn-ghost">Temizle</button>
-              <button type="submit" class="btn btn-primary">Kaydet</button>
-            </div>
-          </form>
+          <div class="card-head"><h2>WhatsApp kişileri ve grupları</h2></div>
+          <p class="muted">Kişiler ve gruplar WhatsApp bağlandıktan sonra otomatik çekilir.</p>
+          <label class="field">
+            <span>Ara</span>
+            <input id="contact-search" type="search" autocomplete="off" placeholder="İsim veya telefon ara" />
+          </label>
         </div>
         <ul id="contact-list" class="list"></ul>
       </section>

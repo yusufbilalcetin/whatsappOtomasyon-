@@ -46,6 +46,30 @@ export async function listContactPhones(uid) {
   return snap.docs.map((d) => d.data().phone).filter(Boolean);
 }
 
+// WhatsApp'tan cekilen kisileri/gruplari toplu ekler/gunceller (jid = dokuman id).
+export async function upsertContacts(uid, items) {
+  const valid = items.filter((it) => it && it.jid);
+  for (let i = 0; i < valid.length; i += 400) {
+    const chunk = valid.slice(i, i + 400);
+    const batch = db.batch();
+    for (const it of chunk) {
+      const id = it.jid.replace(/\//g, '_');
+      const ref = contactsCol(uid).doc(id);
+      const data = { ...it };
+      if (data.type === 'user' && data.nameSource === 'phone') {
+        const existing = await ref.get();
+        const existingData = existing.exists ? existing.data() : {};
+        if (existingData?.name && existingData.nameSource !== 'phone') {
+          delete data.name;
+          delete data.nameSource;
+        }
+      }
+      batch.set(ref, data, { merge: true });
+    }
+    await batch.commit();
+  }
+}
+
 // --- Automations ---
 export async function listAutomations(uid) {
   const snap = await automationsCol(uid).get();

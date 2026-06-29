@@ -1,9 +1,12 @@
 import { logger } from './logger.js';
 import {
   watchUsers, watchAutomations, watchCommands, watchUserDoc,
-  deleteCommand, getAutomation, writeHeartbeat,
+  deleteCommand, getAutomation, writeHeartbeat, upsertContacts,
 } from './firestore.js';
-import { startWhatsAppFor, stopWhatsAppFor, setIncomingHandler } from './whatsapp.js';
+import {
+  startWhatsAppFor, stopWhatsAppFor, resetWhatsAppFor,
+  setIncomingHandler, setContactsHandler,
+} from './whatsapp.js';
 import { reloadSchedulesFor, stopSchedulesFor, runNow } from './scheduler.js';
 import { handleIncoming, setAutoReplyConfig, clearAutoReplyConfig } from './autoreply.js';
 
@@ -18,6 +21,8 @@ async function handleCommand(uid, cmd) {
     if (cmd.type === 'runNow' && cmd.automationId) {
       const automation = await getAutomation(uid, cmd.automationId);
       if (automation) await runNow(uid, automation);
+    } else if (cmd.type === 'disconnectWhatsApp') {
+      await resetWhatsAppFor(uid);
     }
   } catch (e) {
     logger.error({ uid, err: e.message }, 'Komut calistirilamadi.');
@@ -58,6 +63,7 @@ function removeUser(uid) {
 
 function main() {
   setIncomingHandler(handleIncoming); // AI otomatik-yanit
+  setContactsHandler(upsertContacts); // WhatsApp kisi/grup senkronu
 
   watchUsers((uids) => {
     const set = new Set(uids);

@@ -19,6 +19,8 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 let uid = null;
 let unsubs = [];
 let contacts = [];
+const selectedContactIdsState = new Set();
+let contactPickerOpen = false;
 
 // Kullaniciya ozel koleksiyon/dokuman referanslari
 const uCol = (name) => collection(db, 'users', uid, name);
@@ -62,11 +64,12 @@ $$('.seg').forEach((btn) => {
 // =================== Otomasyonlar ===================
 const autoForm = $('#automation-form');
 function selectedContactIds() {
-  return $$('#contact-checks input[type="checkbox"]:checked').map((c) => c.value);
+  return [...selectedContactIdsState];
 }
 function setSelectedContacts(ids) {
-  const set = new Set(ids || []);
-  $$('#contact-checks input[type="checkbox"]').forEach((c) => (c.checked = set.has(c.value)));
+  selectedContactIdsState.clear();
+  (ids || []).forEach((id) => selectedContactIdsState.add(id));
+  renderContactPicker();
 }
 function toggleModeFields() {
   const mode = autoForm.messageMode.value;
@@ -121,7 +124,10 @@ function renderAutomations(items) {
   if (!items.length) { ul.innerHTML = '<li class="li-main"><div class="li-sub">Henüz otomasyon yok.</div></li>'; return; }
   items.forEach((a) => {
     const ids = a.contactIds?.length ? a.contactIds : (a.contactId ? [a.contactId] : []);
-    const names = ids.map((id) => contacts.find((x) => x.id === id)?.name).filter(Boolean);
+    const names = ids.map((id) => {
+      const contact = contacts.find((x) => x.id === id);
+      return contact ? contactName(contact) : '';
+    }).filter(Boolean);
     const who = names.length ? names.join(', ') : '(kişi yok)';
     const days = (a.days || []).map((d) => dayTr[d] || d).join(' ');
     const modeTr = { fixed: 'Mesaj', ai: 'AI' }[a.messageMode] || a.messageMode;
@@ -165,43 +171,132 @@ function fillAutomation(a) {
 }
 
 // =================== Kişiler ===================
-const contactForm = $('#contact-form');
-$('#contact-reset').onclick = () => { contactForm.reset(); contactForm.id.value = ''; };
-contactForm.onsubmit = async (e) => {
-  e.preventDefault();
-  const fd = new FormData(contactForm);
-  try {
-    const phone = normalizePhone(fd.get('phone'));
-    const payload = { name: fd.get('name').trim(), phone };
-    const id = contactForm.id.value;
-    if (id) await updateDoc(uItem('contacts', id), payload);
-    else await addDoc(uCol('contacts'), payload);
-    contactForm.reset(); contactForm.id.value = '';
-    toast('Kaydedildi.');
-  } catch (err) { toast(err.message); }
-};
+function searchText(v) {
+  return String(v || '').toLocaleLowerCase('tr-TR').trim();
+}
+
+function contactDetail(c) {
+  return c.type === 'group' ? 'Grup' : (c.phone || '');
+}
+
+function contactName(c) {
+  return c.name || c.phone || c.jid || '';
+}
+
+function matchesContact(c, term) {
+  const q = searchText(term);
+  if (!q) return true;
+  return [c.name, c.phone, c.jid, c.type === 'group' ? 'grup' : 'kişi']
+    .some((v) => searchText(v).includes(q));
+}
+
+function renderContactList() {
+  const ul = $('#contact-list');
+  const term = $('#contact-search')?.value || '';
+  const filtered = contacts.filter((c) => matchesContact(c, term));
+
+  ul.innerHTML = '';
+  if (!contacts.length) {
+    ul.innerHTML = '<li class="li-main"><div class="li-sub">WhatsApp bağlandıktan sonra kişiler ve gruplar burada görünecek.</div></li>';
+    return;
+  }
+  if (!filtered.length) {
+    ul.innerHTML = '<li class="li-main"><div class="li-sub">Aramaya uygun kişi veya grup yok.</div></li>';
+    return;
+  }
+
+  filtered.forEach((c) => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="li-main"><div class="li-title">${contactName(c)}</div><div class="li-sub">${contactDetail(c)}</div></div>`;
+    ul.appendChild(li);
+  });
+}
+
+function renderSelectedContacts() {
+  const wrap = $('#selected-contacts');
+  if (!wrap) return;
+
+  wrap.innerHTML = '';
+  const selected = selectedContactIds().map((id) => contacts.find((c) => c.id === id)).filter(Boolean);
+  if (!selected.length) {
+    wrap.innerHTML = '<span class="muted small">Seçili kişi yok.</span>';
+    return;
+  }
+
+  selected.forEach((c) => {
+    const item = document.createElement('div');
+    item.className = 'selected-contact';
+    item.innerHTML = `<span>${contactName(c)}</span><button type="button" aria-label="Kaldır">×</button>`;
+    item.querySelector('button').onclick = () => {
+      selectedContactIdsState.delete(c.id);
+      renderContactPicker();
+    };
+    wrap.appendChild(item);
+  });
+}
+
+function renderContactPicker() {
+  renderSelectedContacts();
+
+  const input = $('#contact-picker-input');
+  const options = $('#contact-picker-options');
+  if (!input || !options) return;
+
+  const selected = new Set(selectedContactIds());
+  const filtered = contacts
+    .filter((c) => !selected.has(c.id) && matchesContact(c, input.value))
+    .slice(0, 50);
+
+  options.innerHTML = '';
+  if (!contactPickerOpen) {
+    options.classList.add('hidden');
+    return;
+  }
+
+  if (!contacts.length) {
+    options.innerHTML = '<div class="contact-option-empty">WhatsApp bağlandıktan sonra görünecek.</div>';
+  } else if (!filtered.length) {
+    options.innerHTML = '<div class="contact-option-empty">Sonuç yok.</div>';
+  } else {
+    filtered.forEach((c) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'contact-option';
+      btn.innerHTML = `<span>${contactName(c)}</span><small>${contactDetail(c)}</small>`;
+      btn.onclick = () => {
+        selectedContactIdsState.add(c.id);
+        input.value = '';
+        contactPickerOpen = true;
+        renderContactPicker();
+        input.focus();
+      };
+      options.appendChild(btn);
+    });
+  }
+  options.classList.remove('hidden');
+}
 
 function renderContacts(items) {
   contacts = items;
-  const ul = $('#contact-list');
-  ul.innerHTML = '';
-  items.forEach((c) => {
-    const li = document.createElement('li');
-    li.innerHTML = `
-      <div class="li-main"><div class="li-title">${c.name}</div><div class="li-sub">${c.phone}</div></div>
-      <div class="li-actions"><button class="icon-btn">✎</button><button class="icon-btn danger">🗑</button></div>`;
-    const [edit, del] = li.querySelectorAll('button');
-    edit.onclick = () => { contactForm.id.value = c.id; contactForm.name.value = c.name; contactForm.phone.value = c.phone; window.scrollTo({ top: 0, behavior: 'smooth' }); };
-    del.onclick = async () => { if (confirm('Silinsin mi?')) { await deleteDoc(uItem('contacts', c.id)); toast('Silindi.'); } };
-    ul.appendChild(li);
-  });
-  // Otomasyon formundaki kişi seçim listesi (çoklu seçim) — mevcut seçimi koru.
-  const checks = $('#contact-checks');
-  const prev = new Set(selectedContactIds());
-  checks.innerHTML = items.length
-    ? items.map((c) => `<label><input type="checkbox" value="${c.id}" ${prev.has(c.id) ? 'checked' : ''} /><i>${c.name}</i></label>`).join('')
-    : '<span class="muted small">Önce Kişiler sekmesinden kişi ekleyin.</span>';
+  renderContactList();
+  renderContactPicker();
 }
+
+$('#contact-search').oninput = renderContactList;
+$('#contact-picker-input').onfocus = () => { contactPickerOpen = true; renderContactPicker(); };
+$('#contact-picker-input').oninput = () => { contactPickerOpen = true; renderContactPicker(); };
+$('#contact-picker-input').onkeydown = (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const first = $('#contact-picker-options .contact-option');
+  if (first) first.click();
+};
+document.addEventListener('click', (e) => {
+  if ($('#contact-picker')?.contains(e.target)) return;
+  contactPickerOpen = false;
+  renderContactPicker();
+});
 
 // =================== Kayıtlar ===================
 function renderLogs(items) {
@@ -234,14 +329,26 @@ function renderEngine(s = {}) {
 
   const text = $('#conn-text');
   const qr = $('#conn-qr');
+  const disconnectBtn = $('#wa-disconnect-btn');
+  const canResetWa = engineOnline && s.waState !== 'qr' && s.waState !== 'connecting';
   qr.classList.add('hidden');
+  disconnectBtn.classList.toggle('hidden', !canResetWa);
+  disconnectBtn.disabled = !canResetWa;
   if (!engineOnline) text.textContent = 'Motor çevrimdışı. Mesaj gönderimi için motoru (bilgisayar/sunucu) çalıştırın.';
   else if (s.waState === 'open') text.textContent = '✓ WhatsApp bağlı. Otomasyonlar çalışmaya hazır.';
   else if (s.waState === 'qr' && s.waQr) { text.textContent = 'Telefonunuzla bu QR kodu okutun:'; qr.src = s.waQr; qr.classList.remove('hidden'); }
   else if (s.waState === 'connecting') text.textContent = 'WhatsApp’a bağlanılıyor…';
-  else if (s.waState === 'logged_out') text.textContent = 'Oturum kapandı. Motoru yeniden başlatıp QR’ı tekrar okutun.';
+  else if (s.waState === 'logged_out') text.textContent = 'Oturum kapandı. Yeni QR oluşturmak için bağlantıyı kesin.';
   else text.textContent = 'WhatsApp bağlantısı bekleniyor…';
 }
+
+$('#wa-disconnect-btn').onclick = async () => {
+  if (!confirm('WhatsApp bağlantısı kesilsin ve yeni QR oluşturulsun mu?')) return;
+  try {
+    await addDoc(uCol('commands'), { type: 'disconnectWhatsApp', createdAt: serverTimestamp() });
+    toast('Bağlantı kesiliyor, QR hazırlanıyor…');
+  } catch (e) { toast(e.message); }
+};
 
 // =================== AI Otomatik Yanıt ===================
 const aiForm = $('#ai-form');
@@ -288,6 +395,7 @@ function startListeners() {
 onAuthStateChanged(auth, async (user) => {
   unsubs.forEach((fn) => fn());
   unsubs = [];
+  selectedContactIdsState.clear();
   if (!user) { uid = null; showAuth(); return; }
   uid = user.uid;
   try { await setDoc(userRef(), { email: user.email || '', updatedAt: serverTimestamp() }, { merge: true }); } catch (e) { /* yoksay */ }
