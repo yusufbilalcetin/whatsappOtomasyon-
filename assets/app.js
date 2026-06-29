@@ -1,17 +1,29 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import {
-  getFirestore, collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
+  getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc,
   onSnapshot, query, orderBy, limit, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signOut, GoogleAuthProvider, signInWithPopup,
+} from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 import { firebaseConfig } from './firebase-config.js';
 
-const db = getFirestore(initializeApp(firebaseConfig));
-const col = (name) => collection(db, name);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
+let uid = null;
+let unsubs = [];
 let contacts = [];
+
+// Kullaniciya ozel koleksiyon/dokuman referanslari
+const uCol = (name) => collection(db, 'users', uid, name);
+const uItem = (name, id) => doc(db, 'users', uid, name, id);
+const userRef = () => doc(db, 'users', uid);
 
 const DAYS = [['mon', 'Pzt'], ['tue', 'Sal'], ['wed', 'Çar'], ['thu', 'Per'], ['fri', 'Cum'], ['sat', 'Cmt'], ['sun', 'Paz']];
 const dayTr = Object.fromEntries(DAYS);
@@ -23,10 +35,10 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
-// --- Telefon dogrulama (sunucu ile ayni mantik) ---
+// --- Telefon dogrulama ---
 function normalizePhone(phone) {
   let v = String(phone).replace(/[\s\-()]/g, '').trim();
   if (v.startsWith('00')) v = '+' + v.slice(2);
@@ -37,7 +49,7 @@ function normalizePhone(phone) {
   return v;
 }
 
-// --- Sekmeler ---
+// =================== Sekmeler ===================
 $$('.seg').forEach((btn) => {
   btn.onclick = () => {
     $$('.seg').forEach((b) => b.classList.remove('active'));
@@ -87,8 +99,8 @@ autoForm.onsubmit = async (e) => {
   };
   try {
     const id = autoForm.id.value;
-    if (id) await updateDoc(doc(db, 'automations', id), payload);
-    else await addDoc(col('automations'), { ...payload, lastRunDate: '' });
+    if (id) await updateDoc(uItem('automations', id), payload);
+    else await addDoc(uCol('automations'), { ...payload, lastRunDate: '' });
     resetAutomationForm();
     toast('Kaydedildi.');
   } catch (err) { toast(err.message); }
@@ -114,7 +126,7 @@ function renderAutomations(items) {
       </div>`;
     const [edit, del] = li.querySelectorAll('button');
     edit.onclick = () => fillAutomation(a);
-    del.onclick = async () => { if (confirm('Silinsin mi?')) { await deleteDoc(doc(db, 'automations', a.id)); toast('Silindi.'); } };
+    del.onclick = async () => { if (confirm('Silinsin mi?')) { await deleteDoc(uItem('automations', a.id)); toast('Silindi.'); } };
     ul.appendChild(li);
   });
 }
@@ -144,8 +156,8 @@ contactForm.onsubmit = async (e) => {
     const phone = normalizePhone(fd.get('phone'));
     const payload = { name: fd.get('name').trim(), phone };
     const id = contactForm.id.value;
-    if (id) await updateDoc(doc(db, 'contacts', id), payload);
-    else await addDoc(col('contacts'), payload);
+    if (id) await updateDoc(uItem('contacts', id), payload);
+    else await addDoc(uCol('contacts'), payload);
     contactForm.reset(); contactForm.id.value = '';
     toast('Kaydedildi.');
   } catch (err) { toast(err.message); }
@@ -162,7 +174,7 @@ function renderContacts(items) {
       <div class="li-actions"><button class="icon-btn">✎</button><button class="icon-btn danger">🗑</button></div>`;
     const [edit, del] = li.querySelectorAll('button');
     edit.onclick = () => { contactForm.id.value = c.id; contactForm.name.value = c.name; contactForm.phone.value = c.phone; window.scrollTo({ top: 0, behavior: 'smooth' }); };
-    del.onclick = async () => { if (confirm('Silinsin mi?')) { await deleteDoc(doc(db, 'contacts', c.id)); toast('Silindi.'); } };
+    del.onclick = async () => { if (confirm('Silinsin mi?')) { await deleteDoc(uItem('contacts', c.id)); toast('Silindi.'); } };
     ul.appendChild(li);
   });
   autoForm.contactId.innerHTML = items.map((c) => `<option value="${c.id}">${c.name}</option>`).join('')
@@ -187,53 +199,89 @@ function renderLogs(items) {
   });
 }
 
-// =================== Motor + WhatsApp bağlantı durumu ===================
-function renderEngine(settings) {
-  const s = settings || {};
+// =================== Motor + WhatsApp durumu ===================
+function renderEngine(s = {}) {
   const beat = s.engineHeartbeat?.toDate ? s.engineHeartbeat.toDate() : null;
   const engineOnline = beat && (Date.now() - beat.getTime() < 3 * 60 * 1000);
 
-  // Üst rozet: motor + WhatsApp birlikte
   const pill = $('#engine-pill');
   const pillText = $('#engine-text');
-  if (!engineOnline) {
-    pill.className = 'pill pill--off';
-    pillText.textContent = 'Motor çevrimdışı';
-  } else if (s.waState === 'open') {
-    pill.className = 'pill pill--ok';
-    pillText.textContent = 'WhatsApp bağlı';
-  } else {
-    pill.className = 'pill pill--muted';
-    pillText.textContent = 'Motor açık · WhatsApp bekliyor';
-  }
+  if (!engineOnline) { pill.className = 'pill pill--off'; pillText.textContent = 'Motor çevrimdışı'; }
+  else if (s.waState === 'open') { pill.className = 'pill pill--ok'; pillText.textContent = 'WhatsApp bağlı'; }
+  else { pill.className = 'pill pill--muted'; pillText.textContent = 'Motor açık · WhatsApp bekliyor'; }
 
-  // Bağlantı sekmesi
   const text = $('#conn-text');
   const qr = $('#conn-qr');
   qr.classList.add('hidden');
-  if (!engineOnline) {
-    text.textContent = 'Motor çevrimdışı. Mesaj gönderimi için motoru (bilgisayar/sunucu) çalıştırın.';
-  } else if (s.waState === 'open') {
-    text.textContent = '✓ WhatsApp bağlı. Otomasyonlar çalışmaya hazır.';
-  } else if (s.waState === 'qr' && s.waQr) {
-    text.textContent = 'Telefonunuzla bu QR kodu okutun:';
-    qr.src = s.waQr;
-    qr.classList.remove('hidden');
-  } else if (s.waState === 'connecting') {
-    text.textContent = 'WhatsApp’a bağlanılıyor…';
-  } else if (s.waState === 'logged_out') {
-    text.textContent = 'Oturum kapandı. Motoru yeniden başlatıp QR’ı tekrar okutun.';
-  } else {
-    text.textContent = 'WhatsApp bağlantısı bekleniyor…';
-  }
+  if (!engineOnline) text.textContent = 'Motor çevrimdışı. Mesaj gönderimi için motoru (bilgisayar/sunucu) çalıştırın.';
+  else if (s.waState === 'open') text.textContent = '✓ WhatsApp bağlı. Otomasyonlar çalışmaya hazır.';
+  else if (s.waState === 'qr' && s.waQr) { text.textContent = 'Telefonunuzla bu QR kodu okutun:'; qr.src = s.waQr; qr.classList.remove('hidden'); }
+  else if (s.waState === 'connecting') text.textContent = 'WhatsApp’a bağlanılıyor…';
+  else if (s.waState === 'logged_out') text.textContent = 'Oturum kapandı. Motoru yeniden başlatıp QR’ı tekrar okutun.';
+  else text.textContent = 'WhatsApp bağlantısı bekleniyor…';
 }
 
-// =================== Canlı dinleyiciler ===================
-function start() {
-  toggleModeFields();
-  onSnapshot(query(col('contacts'), orderBy('name')), (s) => renderContacts(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  onSnapshot(col('automations'), (s) => renderAutomations(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  onSnapshot(query(col('logs'), orderBy('sentAt', 'desc'), limit(100)), (s) => renderLogs(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  onSnapshot(doc(db, 'settings', 'global'), (d) => renderEngine(d.data()));
+// =================== Giriş / Oturum ===================
+function showAuth() {
+  $('#auth-view').classList.remove('hidden');
+  $('#app-view').classList.add('hidden');
 }
-start();
+function showApp() {
+  $('#auth-view').classList.add('hidden');
+  $('#app-view').classList.remove('hidden');
+}
+
+function startListeners() {
+  toggleModeFields();
+  unsubs.push(onSnapshot(query(uCol('contacts'), orderBy('name')), (s) => renderContacts(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
+  unsubs.push(onSnapshot(uCol('automations'), (s) => renderAutomations(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
+  unsubs.push(onSnapshot(query(uCol('logs'), orderBy('sentAt', 'desc'), limit(100)), (s) => renderLogs(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
+  unsubs.push(onSnapshot(userRef(), (d) => renderEngine(d.data())));
+}
+
+onAuthStateChanged(auth, async (user) => {
+  unsubs.forEach((fn) => fn());
+  unsubs = [];
+  if (!user) { uid = null; showAuth(); return; }
+  uid = user.uid;
+  try { await setDoc(userRef(), { email: user.email || '', updatedAt: serverTimestamp() }, { merge: true }); } catch (e) { /* yoksay */ }
+  $('#user-email').textContent = user.email || 'Hesabım';
+  showApp();
+  startListeners();
+});
+
+// --- Giriş formu ---
+const authForm = $('#auth-form');
+let authMode = 'login'; // 'login' | 'signup'
+$('#auth-toggle').onclick = () => {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  $('#auth-submit').textContent = authMode === 'login' ? 'Giriş yap' : 'Kayıt ol';
+  $('#auth-toggle').textContent = authMode === 'login' ? 'Hesabın yok mu? Kayıt ol' : 'Zaten hesabın var mı? Giriş yap';
+};
+authForm.onsubmit = async (e) => {
+  e.preventDefault();
+  const email = authForm.email.value.trim();
+  const pass = authForm.password.value;
+  try {
+    if (authMode === 'login') await signInWithEmailAndPassword(auth, email, pass);
+    else await createUserWithEmailAndPassword(auth, email, pass);
+  } catch (err) { toast(authError(err)); }
+};
+$('#google-btn').onclick = async () => {
+  try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+  catch (err) { toast(authError(err)); }
+};
+$('#logout-btn').onclick = () => signOut(auth);
+
+function authError(err) {
+  const map = {
+    'auth/invalid-email': 'Geçersiz e-posta.',
+    'auth/missing-password': 'Şifre girin.',
+    'auth/weak-password': 'Şifre en az 6 karakter olmalı.',
+    'auth/email-already-in-use': 'Bu e-posta zaten kayıtlı.',
+    'auth/invalid-credential': 'E-posta veya şifre hatalı.',
+    'auth/popup-closed-by-user': 'Giriş penceresi kapatıldı.',
+    'auth/unauthorized-domain': 'Bu alan adı Firebase’de yetkili değil (Authentication → Settings → Authorized domains).',
+  };
+  return map[err.code] || err.message;
+}

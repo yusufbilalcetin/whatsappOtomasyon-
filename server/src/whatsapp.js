@@ -10,21 +10,30 @@ import { config } from './config.js';
 import { logger } from './logger.js';
 import { setWhatsappStatus } from './firestore.js';
 
-let sock = null;
-let connectionState = 'disconnected'; // 'disconnected' | 'connecting' | 'qr' | 'open'
+// Her kullanici icin ayri WhatsApp oturumu. uid -> { sock, state }
+const sockets = new Map();
 
-export async function startWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState(config.waAuthDir);
-  const { version } = await fetchLatestBaileysVersion();
-  logger.info({ version }, 'WhatsApp Web surumu alindi.');
+let cachedVersion = null;
+async function waVersion() {
+  if (!cachedVersion) cachedVersion = (await fetchLatestBaileysVersion()).version;
+  return cachedVersion;
+}
 
-  sock = makeWASocket({
+export async function startWhatsAppFor(uid) {
+  if (sockets.has(uid)) return; // zaten baglaniyor/bagli
+  const authDir = `${config.waAuthDir}/${uid}`;
+  const { state, saveCreds } = await useMultiFileAuthState(authDir);
+  const version = await waVersion();
+
+  const sock = makeWASocket({
     version,
     auth: state,
     browser: Browsers.ubuntu('Chrome'),
-    logger: logger.child({ module: 'baileys' }),
+    logger: logger.child({ module: 'baileys', uid }),
     markOnlineOnConnect: false,
   });
+  const entry = { sock, state: 'connecting' };
+  sockets.set(uid, entry);
 
   sock.ev.on('creds.update', saveCreds);
 
@@ -32,35 +41,39 @@ export async function startWhatsApp() {
     const { connection, qr, lastDisconnect } = update;
 
     if (qr) {
-      connectionState = 'qr';
-      // QR'i hem terminale ASCII yaz hem de panelin gosterebilmesi icin Firestore'a koy.
-      const ascii = await QRCode.toString(qr, { type: 'terminal', small: true });
-      console.log('\n=== WhatsApp QR kodu (telefondan okut) ===\n' + ascii);
+      entry.state = 'qr';
       const dataUrl = await QRCode.toDataURL(qr, { margin: 1, width: 320 });
-      setWhatsappStatus('qr', dataUrl).catch((e) => logger.warn(e, 'QR yazilamadi.'));
+      setWhatsappStatus(uid, 'qr', dataUrl).catch((e) => logger.warn(e, 'QR yazilamadi.'));
     }
     if (connection === 'connecting') {
-      connectionState = 'connecting';
-      setWhatsappStatus('connecting').catch(() => {});
+      entry.state = 'connecting';
+      setWhatsappStatus(uid, 'connecting').catch(() => {});
     }
     if (connection === 'open') {
-      connectionState = 'open';
-      logger.info('WhatsApp baglantisi acildi.');
-      setWhatsappStatus('open', null).catch(() => {});
+      entry.state = 'open';
+      logger.info({ uid }, 'WhatsApp baglantisi acildi.');
+      setWhatsappStatus(uid, 'open', null).catch(() => {});
     }
     if (connection === 'close') {
-      connectionState = 'disconnected';
+      entry.state = 'disconnected';
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const loggedOut = statusCode === DisconnectReason.loggedOut;
-      logger.warn({ statusCode, loggedOut }, 'WhatsApp baglantisi kapandi.');
-      setWhatsappStatus(loggedOut ? 'logged_out' : 'disconnected', null).catch(() => {});
+      logger.warn({ uid, statusCode, loggedOut }, 'WhatsApp baglantisi kapandi.');
+      setWhatsappStatus(uid, loggedOut ? 'logged_out' : 'disconnected', null).catch(() => {});
+      sockets.delete(uid);
       if (!loggedOut) {
-        setTimeout(() => startWhatsApp().catch((e) => logger.error(e)), 3000);
+        setTimeout(() => startWhatsAppFor(uid).catch((e) => logger.error(e)), 3000);
       }
     }
   });
+}
 
-  return sock;
+export function stopWhatsAppFor(uid) {
+  const entry = sockets.get(uid);
+  if (entry) {
+    try { entry.sock.end(); } catch { /* yoksay */ }
+    sockets.delete(uid);
+  }
 }
 
 // +905xxxxxxxxx / 05xx / 5xx gibi girdileri uluslararasi formata cevirir.
@@ -76,12 +89,13 @@ export function normalizePhone(phone) {
   return v;
 }
 
-export async function sendMessage(phone, text) {
-  if (connectionState !== 'open' || !sock) {
+export async function sendMessageFor(uid, phone, text) {
+  const entry = sockets.get(uid);
+  if (!entry || entry.state !== 'open') {
     throw new Error('WhatsApp bagli degil. Panelden QR okutun.');
   }
   const normalized = normalizePhone(phone);
   const jid = jidEncode(normalized.replace('+', ''), 's.whatsapp.net');
-  await sock.sendMessage(jid, { text });
+  await entry.sock.sendMessage(jid, { text });
   return { phone: normalized };
 }

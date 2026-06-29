@@ -167,6 +167,46 @@ select {
 }
 .muted.small { font-size: 12.5px; margin-top: 8px; }
 
+/* ============ Giriş ekranı ============ */
+.auth-view {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.auth-card {
+  width: 100%; max-width: 380px; background: var(--surface); border-radius: var(--radius);
+  padding: 30px 26px; box-shadow: var(--shadow); text-align: center;
+}
+.auth-brand { margin-bottom: 22px; }
+.auth-brand .brand-mark { width: 46px; height: 46px; border-radius: 13px; margin: 0 auto 14px; }
+.auth-brand h1 { font-size: 21px; font-weight: 600; letter-spacing: -.02em; }
+.auth-brand .muted { margin: 6px 0 0; }
+.google-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.auth-sep { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; margin: 18px 0; }
+.auth-sep::before, .auth-sep::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+#auth-form { text-align: left; }
+.auth-link {
+  margin-top: 16px; background: none; border: none; color: var(--blue);
+  font-size: 14px; font-weight: 500; cursor: pointer; padding: 8px; width: auto;
+}
+
+/* ============ Topbar hesap ============ */
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.user-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--surface-2); border-radius: 999px; padding: 4px 4px 4px 12px; max-width: 220px;
+}
+.user-chip #user-email {
+  font-size: 13px; color: var(--muted); max-width: 130px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.user-chip .logout {
+  font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px;
+  background: var(--surface); color: var(--text); border: none; cursor: pointer; width: auto;
+}
+@media (max-width: 540px) {
+  .user-chip #user-email { max-width: 80px; }
+  .topbar { flex-wrap: wrap; gap: 10px; }
+}
+
 .hidden { display: none !important; }
 
 /* Toast */

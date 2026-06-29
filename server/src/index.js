@@ -1,29 +1,48 @@
 import { logger } from './logger.js';
-import { ensureSeed, writeHeartbeat, watchAutomations } from './firestore.js';
-import { startWhatsApp } from './whatsapp.js';
-import { reloadSchedules } from './scheduler.js';
+import { watchUsers, watchAutomations, writeHeartbeat } from './firestore.js';
+import { startWhatsAppFor, stopWhatsAppFor } from './whatsapp.js';
+import { reloadSchedulesFor, stopSchedulesFor } from './scheduler.js';
 
-// Motor: WhatsApp baglantisi + zamanlayici. Panel ayri (Vercel) calisir;
-// ikisi Firestore uzerinden konusur.
-async function main() {
-  await ensureSeed();
-  await startWhatsApp();
-  await reloadSchedules();
+// Cok kullanicili motor: her kullanici icin ayri WhatsApp oturumu + zamanlayici.
+// Panel (Vercel) users/{uid}/... yazar; motor okur ve gonderir.
+const active = new Map(); // uid -> { unsubAutomations }
 
-  // Panelden otomasyon degisince zamanlamalari yeniden kur.
-  watchAutomations(() => {
-    reloadSchedules().catch((e) => logger.error(e, 'Zamanlama yenileme hatasi.'));
+async function addUser(uid) {
+  if (active.has(uid)) return;
+  logger.info({ uid }, 'Kullanici eklendi, baglaniliyor.');
+  await startWhatsAppFor(uid);
+  await reloadSchedulesFor(uid);
+  const unsubAutomations = watchAutomations(uid, () => {
+    reloadSchedulesFor(uid).catch((e) => logger.error(e, 'Zamanlama yenileme hatasi.'));
   });
-
-  // Panelin "motor cevrimici" rozetini beslemek icin kalp atisi.
-  const beat = () => writeHeartbeat().catch((e) => logger.warn(e, 'Heartbeat yazilamadi.'));
-  beat();
-  setInterval(beat, 60_000);
-
-  logger.info('Motor calisiyor. WhatsApp QR bekleniyor (ilk kurulumda).');
+  active.set(uid, { unsubAutomations });
 }
 
-main().catch((err) => {
-  logger.error(err, 'Baslatma hatasi.');
-  process.exit(1);
-});
+function removeUser(uid) {
+  const entry = active.get(uid);
+  if (!entry) return;
+  logger.info({ uid }, 'Kullanici kaldirildi.');
+  entry.unsubAutomations?.();
+  stopSchedulesFor(uid);
+  stopWhatsAppFor(uid);
+  active.delete(uid);
+}
+
+function main() {
+  // Kullanici listesi degistikce baglantilari ekle/kaldir.
+  watchUsers((uids) => {
+    const set = new Set(uids);
+    for (const uid of uids) addUser(uid).catch((e) => logger.error(e, 'Kullanici eklenemedi.'));
+    for (const uid of [...active.keys()]) if (!set.has(uid)) removeUser(uid);
+  });
+
+  // Tum aktif kullanicilar icin kalp atisi (panel "motor cevrimici" rozeti).
+  const beat = () => {
+    for (const uid of active.keys()) writeHeartbeat(uid).catch(() => {});
+  };
+  setInterval(beat, 60_000);
+
+  logger.info('Cok kullanicili motor calisiyor.');
+}
+
+main();
