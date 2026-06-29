@@ -498,10 +498,10 @@ main {
   .form-grid .span-2 { grid-column: auto; }
   .card { padding: 18px; }
   .card-head h2 { font-size: 17px; }
-  /* Gün butonlari her ekran genisliginde esit yayilsin (tek/iki satira temiz sarar) */
-  .days { gap: 6px; }
-  .days label { flex: 1 1 auto; }
-  .days i { width: 100%; min-width: 40px; }
+  /* Gün butonlari: 7 gün tek satirda esit genislikte (temiz day-picker) */
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+  .days label { display: block; }
+  .days i { width: 100%; min-width: 0; padding: 9px 2px; }
   .actions { flex-direction: column-reverse; }
   .actions .btn { width: 100%; }
 
