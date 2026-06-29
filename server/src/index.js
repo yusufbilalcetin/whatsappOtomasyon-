@@ -3,6 +3,8 @@ import { watchUsers, watchAutomations, writeHeartbeat } from './firestore.js';
 import { startWhatsAppFor, stopWhatsAppFor } from './whatsapp.js';
 import { reloadSchedulesFor, stopSchedulesFor } from './scheduler.js';
 
+const BEAT_MS = 45_000;
+
 // Cok kullanicili motor: her kullanici icin ayri WhatsApp oturumu + zamanlayici.
 // Panel (Vercel) users/{uid}/... yazar; motor okur ve gonderir.
 const active = new Map(); // uid -> { unsubAutomations }
@@ -10,6 +12,7 @@ const active = new Map(); // uid -> { unsubAutomations }
 async function addUser(uid) {
   if (active.has(uid)) return;
   logger.info({ uid }, 'Kullanici eklendi, baglaniliyor.');
+  await writeHeartbeat(uid); // panelin "motor cevrimici" gostergesi hemen yansisin
   await startWhatsAppFor(uid);
   await reloadSchedulesFor(uid);
   const unsubAutomations = watchAutomations(uid, () => {
@@ -40,7 +43,7 @@ function main() {
   const beat = () => {
     for (const uid of active.keys()) writeHeartbeat(uid).catch(() => {});
   };
-  setInterval(beat, 60_000);
+  setInterval(beat, BEAT_MS);
 
   logger.info('Cok kullanicili motor calisiyor.');
 }
