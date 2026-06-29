@@ -1,11 +1,11 @@
 // Apple tarzi wheel-picker saat secici. 24s "HH:MM" degerini gizli input'ta tutar,
 // kullaniciya 12s "08:00 AM" gosterir.
-const ITEM_H = 44; // px — .tp-col li yuksekligiyle ayni olmali
+const ITEM_H = 44; // px — .tp-item yuksekligiyle ayni olmali
 
 const $ = (s) => document.querySelector(s);
 
 let trigger, overlay, panel, hidden, display, wheels;
-let cols = {}; // { hour, minute, ampm } -> scroll container
+const cols = {}; // name -> { el, items: [], active: -1, raf: 0 }
 const data = {
   hour: Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')),
   minute: Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')),
@@ -31,45 +31,54 @@ export function syncTimeDisplay() {
 }
 
 function buildColumn(name) {
-  const col = wheels.querySelector(`[data-col="${name}"]`);
-  col.innerHTML = '';
+  const el = wheels.querySelector(`[data-col="${name}"]`);
+  el.innerHTML = '';
+  const frag = document.createDocumentFragment();
   const pad = document.createElement('div');
   pad.className = 'tp-pad';
-  col.appendChild(pad.cloneNode());
-  data[name].forEach((val) => {
+  frag.appendChild(pad.cloneNode());
+  const items = data[name].map((val) => {
     const li = document.createElement('div');
     li.className = 'tp-item';
     li.textContent = val;
-    li.dataset.value = val;
-    col.appendChild(li);
+    frag.appendChild(li);
+    return li;
   });
-  col.appendChild(pad.cloneNode());
+  frag.appendChild(pad.cloneNode());
+  el.appendChild(frag);
+
+  const col = { el, items, active: -1, raf: 0 };
   cols[name] = col;
 
-  let raf;
-  col.addEventListener('scroll', () => {
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => highlight(name));
-  });
+  // Sadece aktif (ortadaki) ogeyi guncelle — tum listeyi gezme, kasmayi onler.
+  el.addEventListener('scroll', () => {
+    if (col.raf) return;
+    col.raf = requestAnimationFrame(() => {
+      col.raf = 0;
+      highlight(name);
+    });
+  }, { passive: true });
 }
 
-function indexOf(name) {
-  return Math.round(cols[name].scrollTop / ITEM_H);
+function clampIndex(name) {
+  const idx = Math.round(cols[name].el.scrollTop / ITEM_H);
+  return Math.min(Math.max(idx, 0), data[name].length - 1);
 }
 function highlight(name) {
-  const idx = indexOf(name);
-  cols[name].querySelectorAll('.tp-item').forEach((el, i) => {
-    el.classList.toggle('active', i === idx);
-  });
+  const col = cols[name];
+  const idx = clampIndex(name);
+  if (idx === col.active) return;
+  if (col.active >= 0) col.items[col.active].classList.remove('active');
+  col.items[idx].classList.add('active');
+  col.active = idx;
 }
 function scrollTo(name, value) {
-  const i = data[name].indexOf(value);
-  cols[name].scrollTop = Math.max(0, i) * ITEM_H;
+  const i = Math.max(0, data[name].indexOf(value));
+  cols[name].el.scrollTop = i * ITEM_H;
   highlight(name);
 }
 function valueOf(name) {
-  const idx = Math.min(Math.max(indexOf(name), 0), data[name].length - 1);
-  return data[name][idx];
+  return data[name][clampIndex(name)];
 }
 
 function open() {
@@ -86,7 +95,7 @@ function close() {
   panel.classList.remove('show');
   setTimeout(() => overlay.classList.add('hidden'), 180);
 }
-function confirm() {
+function confirmSel() {
   hidden.value = to24(valueOf('hour'), valueOf('minute'), valueOf('ampm'));
   syncTimeDisplay();
   close();
@@ -104,7 +113,7 @@ export function initTimePicker() {
 
   trigger.addEventListener('click', open);
   $('#tp-cancel').addEventListener('click', close);
-  $('#tp-ok').addEventListener('click', confirm);
+  $('#tp-ok').addEventListener('click', confirmSel);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
   syncTimeDisplay();

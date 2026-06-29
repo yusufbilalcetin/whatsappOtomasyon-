@@ -191,20 +191,22 @@ select {
 .tp-overlay {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: flex-end; justify-content: center;
-  background: rgba(0,0,0,.45);
-  backdrop-filter: blur(6px) saturate(140%); -webkit-backdrop-filter: blur(6px) saturate(140%);
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
 }
 @media (min-width: 540px) { .tp-overlay { align-items: center; } }
 
+/* Panel kendisi neredeyse opak: kaydirma sirasinda backdrop blur'u her kare
+   yeniden hesaplanmasin diye (kasma onlemi). Cam hissi ince kenarlardan gelir. */
 .tp-panel {
   width: 100%; max-width: 420px; margin: 0 12px 12px;
-  background: color-mix(in srgb, #14151a 86%, transparent);
+  background: #16171c;
   border: 1px solid rgba(255,255,255,.08); border-radius: 26px;
   padding: 20px; color: #f5f5f7;
   box-shadow: 0 30px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06);
-  backdrop-filter: blur(28px) saturate(180%); -webkit-backdrop-filter: blur(28px) saturate(180%);
   transform: translateY(24px) scale(.97); opacity: 0;
   transition: transform .24s cubic-bezier(.22,1,.36,1), opacity .24s;
+  will-change: transform, opacity;
 }
 .tp-panel.show { transform: translateY(0) scale(1); opacity: 1; }
 
