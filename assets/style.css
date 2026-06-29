@@ -387,28 +387,100 @@ main {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ---------- Mobil ---------- */
+/* ===========================================================
+   Mobil / Responsive
+   - Çentik (safe-area) desteği
+   - Sol menü → uygulama tarzı sabit alt tab bar
+   =========================================================== */
+
+/* iOS Safari'de 16px altı input odaklanınca otomatik zoom yapar; bunu engelle. */
 @media (max-width: 720px) {
-  .topbar { padding: 0 12px; }
-  .user-chip #user-email { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .workspace { flex-direction: column; }
-  .segmented {
-    width: 100%; flex-direction: row; gap: 6px; overflow-x: auto;
-    border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 10px;
+  input, select, textarea { font-size: 16px; }
+}
+
+/* ---------- Tablet ve altı ---------- */
+@media (max-width: 720px) {
+  /* Üst bar: çentik üst boşluğu + sticky kalsın */
+  .topbar {
+    padding: 0 12px;
+    padding-top: env(safe-area-inset-top);
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    height: calc(56px + env(safe-area-inset-top));
+    position: sticky; top: 0; z-index: 50;
   }
-  .seg { flex-direction: column; gap: 4px; padding: 8px 12px; flex-shrink: 0; font-size: 12px; }
-  .seg-ico { font-size: 19px; width: auto; }
-  main { padding: 14px; }
+  .brand span { font-size: 15px; }
+  .user-chip { padding: 5px 5px 5px 12px; }
+  .user-chip #user-email { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-right { gap: 8px; }
+  .pill { padding: 5px 10px; }
+  .pill .pill-long { display: none; }
+
+  .workspace { flex-direction: column; }
+
+  /* Sol menü → sabit alt tab bar (uygulama hissi) */
+  .segmented {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    width: 100%; flex-direction: row; gap: 0;
+    border-right: 0; border-top: 1px solid var(--border);
+    background: var(--panel);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 12px rgba(11,20,26,.06);
+  }
+  .seg {
+    flex: 1 1 0; min-width: 0;
+    flex-direction: column; gap: 3px;
+    padding: 7px 4px; border-radius: 12px;
+    font-size: 10.5px; font-weight: 600;
+    color: var(--muted);
+  }
+  .seg .seg-txt {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .seg:hover { background: transparent; }
+  .seg.active { background: transparent; color: var(--brand-text); }
+  .seg-ico { font-size: 20px; width: auto; transition: transform .15s; }
+  .seg.active .seg-ico { transform: translateY(-1px) scale(1.08); }
+
+  /* İçerik: alt tab bar'ın arkasında kalmasın */
+  main {
+    padding: 14px;
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .span-2 { grid-column: auto; }
   .card { padding: 18px; }
-  .topbar-right { gap: 8px; }
-  .pill .pill-long { display: none; }
+  .card-head h2 { font-size: 17px; }
+  .actions { flex-direction: column-reverse; }
+  .actions .btn { width: 100%; }
+
   .setting-row { flex-direction: column; }
   .theme-switch { width: 100%; }
   .theme-opt { flex: 1; text-align: center; padding-inline: 8px; }
+
   .pairing-form { grid-template-columns: 1fr; }
   .pairing-form .btn { width: 100%; }
   .pairing-code-box { align-items: flex-start; flex-direction: column; }
   .pairing-code-box .btn { width: 100%; }
+
+  /* Toast alt tab bar'ın üstünde dursun */
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom)); }
+
+  /* Liste satırlarında butonlar taşmasın */
+  .list > li { flex-wrap: wrap; }
+  .li-actions { flex-shrink: 0; }
+}
+
+/* ---------- Telefon (dar) ---------- */
+@media (max-width: 420px) {
+  .brand span { display: none; }            /* logoyu bırak, metni gizle */
+  .pill #engine-text { display: none; }      /* sadece renkli nokta kalsın */
+  .pill { padding: 7px; }
+  .user-chip #user-email { max-width: 78px; }
+  .auth-card { padding: 24px 20px; }
+  .days i { min-width: 40px; padding: 8px 4px; }
+  .seg .seg-txt { font-size: 10px; }
 }
