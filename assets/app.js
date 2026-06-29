@@ -22,6 +22,15 @@ const auth = getAuth(app);
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
+// HTML kacisi (XSS korumasi). Kisi adlari WhatsApp pushName/notify ile saldirgan
+// tarafindan kontrol edilebildiginden, innerHTML'e konan TUM dinamik degerler
+// (isim, telefon, mesaj, log) bu fonksiyondan gecirilmeli.
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
 let uid = null;
 let unsubs = [];
 let contacts = [];
@@ -262,8 +271,8 @@ function renderAutomations(items) {
     const li = document.createElement('li');
     li.innerHTML = `
       <div class="li-main">
-        <div class="li-title">${a.name} <span class="badge ${a.enabled ? 'ok' : 'off'}">${a.enabled ? 'aktif' : 'pasif'}</span></div>
-        <div class="li-sub">${a.time} · ${who} · ${modeTr} · ${days}</div>
+        <div class="li-title">${esc(a.name)} <span class="badge ${a.enabled ? 'ok' : 'off'}">${a.enabled ? 'aktif' : 'pasif'}</span></div>
+        <div class="li-sub">${esc(a.time)} · ${esc(who)} · ${esc(modeTr)} · ${esc(days)}</div>
       </div>
       <div class="li-actions">
         <button class="icon-btn" title="Hemen gönder">▶</button>
@@ -323,7 +332,7 @@ function buildContactLi(c) {
   const li = document.createElement('li');
   const renamed = c.customName ? ' <span class="badge ok">özel ad</span>' : '';
   li.innerHTML = `
-    <div class="li-main"><div class="li-title">${contactName(c)}${renamed}</div><div class="li-sub">${contactDetail(c)}</div></div>
+    <div class="li-main"><div class="li-title">${esc(contactName(c))}${renamed}</div><div class="li-sub">${esc(contactDetail(c))}</div></div>
     <div class="li-actions">
       <button class="icon-btn" title="İsim ver / düzenle">✎</button>
     </div>`;
@@ -335,7 +344,7 @@ function buildContactLi(c) {
 function categoryHeader(title, count) {
   const li = document.createElement('li');
   li.className = 'list-category';
-  li.innerHTML = `<div class="li-sub"><strong>${title}</strong> (${count})</div>`;
+  li.innerHTML = `<div class="li-sub"><strong>${esc(title)}</strong> (${esc(count)})</div>`;
   return li;
 }
 
@@ -372,11 +381,11 @@ function startRenameContact(li, c) {
   const main = li.querySelector('.li-main');
   main.innerHTML = `
     <div class="rename-row">
-      <input class="rename-input" type="text" maxlength="60" placeholder="${c.phone || 'İsim'}" />
+      <input class="rename-input" type="text" maxlength="60" placeholder="${esc(c.phone || 'İsim')}" />
       <button type="button" class="btn btn-primary btn-sm rename-save">Kaydet</button>
       <button type="button" class="btn btn-ghost btn-sm rename-cancel">Vazgeç</button>
     </div>
-    <div class="li-sub">${contactDetail(c)}</div>`;
+    <div class="li-sub">${esc(contactDetail(c))}</div>`;
   const input = main.querySelector('.rename-input');
   input.value = c.customName || '';
   input.focus();
@@ -408,7 +417,7 @@ function renderSelectedContacts() {
   selected.forEach((c) => {
     const item = document.createElement('div');
     item.className = 'selected-contact';
-    item.innerHTML = `<span>${contactName(c)}</span><button type="button" aria-label="Kaldır">×</button>`;
+    item.innerHTML = `<span>${esc(contactName(c))}</span><button type="button" aria-label="Kaldır">×</button>`;
     item.querySelector('button').onclick = () => {
       selectedContactIdsState.delete(c.id);
       renderContactPicker();
@@ -444,7 +453,7 @@ function renderContactPicker() {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'contact-option';
-      btn.innerHTML = `<span>${contactName(c)}</span><small>${contactDetail(c)}</small>`;
+      btn.innerHTML = `<span>${esc(contactName(c))}</span><small>${esc(contactDetail(c))}</small>`;
       btn.onclick = () => {
         selectedContactIdsState.add(c.id);
         input.value = '';
@@ -520,8 +529,8 @@ function renderLogs(items) {
     const li = document.createElement('li');
     li.innerHTML = `
       <div class="li-main">
-        <div class="li-title">${l.contactName || l.phone || '-'} <span class="badge ${ok ? 'ok' : 'err'}">${l.status}</span></div>
-        <div class="li-sub">${when} · ${l.message || l.error || ''}</div>
+        <div class="li-title">${esc(l.contactName || l.phone || '-')} <span class="badge ${ok ? 'ok' : 'err'}">${esc(l.status)}</span></div>
+        <div class="li-sub">${esc(when)} · ${esc(l.message || l.error || '')}</div>
       </div>`;
     ul.appendChild(li);
   });
