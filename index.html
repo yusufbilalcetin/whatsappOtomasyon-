@@ -19,17 +19,49 @@
     })();
   </script>
   <link rel="preconnect" href="https://www.gstatic.com" />
-  <link rel="stylesheet" href="/assets/style.css?v=20260629-5" />
+  <link rel="stylesheet" href="/assets/style.css?v=20260629-6" />
 </head>
 <body>
   <!-- Giriş / Kayıt ekranı -->
   <div id="auth-view" class="auth-view hidden">
+   <div class="auth-layout">
+    <!-- Sol: tanıtım / amaç (landing) -->
+    <aside class="auth-hero">
+      <div class="hero-brand">
+        <div class="brand-mark brand-mark--lg">
+          <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><path fill="currentColor" d="M16 3C9.4 3 4 8.4 4 15c0 2.3.6 4.4 1.8 6.3L4 29l7.9-1.7c1.8 1 3.9 1.5 6.1 1.5 6.6 0 12-5.4 12-12S22.6 3 16 3zm0 21.8c-1.9 0-3.7-.5-5.3-1.5l-.4-.2-4.1.9.9-4-.3-.4c-1.1-1.7-1.6-3.6-1.6-5.6 0-5.6 4.6-10.2 10.2-10.2S26.2 9.4 26.2 15 21.6 24.8 16 24.8z"/><path fill="currentColor" d="M21.6 17.7c-.3-.2-1.8-.9-2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.2-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.5c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.2-.3-.2-.6-.4z"/></svg>
+        </div>
+        <span class="hero-name">WhatsApp Otomasyon</span>
+      </div>
+      <h2 class="hero-slogan">Doğru mesaj, doğru kişiye, tam zamanında.</h2>
+      <p class="hero-mission">WhatsApp mesajlarınızı sizin yerinize zamanında gönderir; sevdiklerinize, müşterilerinize ya da topluluğunuza — zamanlanmış mesajlar ve akıllı otomatik yanıtlarla.</p>
+
+      <ul class="hero-features">
+        <li><span class="hf-ico">⏰</span><div><b>Zamanlanmış mesajlar</b><small>Seçtiğin saat ve günlerde otomatik gönderim.</small></div></li>
+        <li><span class="hf-ico">🤖</span><div><b>Akıllı otomatik yanıt</b><small>Gelen mesajlara senin üslubunla AI yanıt.</small></div></li>
+        <li><span class="hf-ico">👥</span><div><b>Kişi & grup yönetimi</b><small>Kişilerini düzenle, gruplara tek seferde ulaş.</small></div></li>
+      </ul>
+
+      <div class="usecase-chips" aria-label="Kullanım alanları">
+        <span class="uc-chip">💚 Kişisel</span>
+        <span class="uc-chip">🏢 İşletme</span>
+        <span class="uc-chip">📣 Topluluk</span>
+      </div>
+    </aside>
+
+    <!-- Sağ: giriş/kayıt formu -->
     <div class="auth-card">
       <div class="auth-brand">
         <div class="brand-mark">
           <svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><path fill="currentColor" d="M16 3C9.4 3 4 8.4 4 15c0 2.3.6 4.4 1.8 6.3L4 29l7.9-1.7c1.8 1 3.9 1.5 6.1 1.5 6.6 0 12-5.4 12-12S22.6 3 16 3zm0 21.8c-1.9 0-3.7-.5-5.3-1.5l-.4-.2-4.1.9.9-4-.3-.4c-1.1-1.7-1.6-3.6-1.6-5.6 0-5.6 4.6-10.2 10.2-10.2S26.2 9.4 26.2 15 21.6 24.8 16 24.8z"/><path fill="currentColor" d="M21.6 17.7c-.3-.2-1.8-.9-2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.2-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.5c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.2-.3-.2-.6-.4z"/></svg>
         </div>
         <h1>WhatsApp Otomasyon</h1>
+        <p class="muted hero-slogan-sm">Doğru mesaj, doğru kişiye, tam zamanında.</p>
+        <div class="usecase-chips usecase-chips--sm">
+          <span class="uc-chip">💚 Kişisel</span>
+          <span class="uc-chip">🏢 İşletme</span>
+          <span class="uc-chip">📣 Topluluk</span>
+        </div>
         <p class="muted" id="auth-subtitle">Hesabınıza giriş yapın</p>
       </div>
 
@@ -61,6 +93,7 @@
         <button id="auth-submit" type="submit" class="btn btn-primary">Giriş yap</button>
       </form>
     </div>
+   </div>
   </div>
 
   <!-- Uygulama -->
@@ -100,6 +133,31 @@
       </nav>
 
       <main>
+        <!-- Başlarken (onboarding) -->
+        <section id="onboarding" class="onboarding hidden">
+          <div class="ob-head">
+            <div>
+              <div class="ob-title">👋 Hoş geldin! 3 adımda başla</div>
+              <div class="ob-sub">Sevdiklerine, müşterilerine ya da topluluğuna otomatik mesajlar göndermeye hazırlan.</div>
+            </div>
+            <button id="onboarding-close" type="button" class="btn btn-ghost btn-sm">Kapat</button>
+          </div>
+          <ol class="ob-steps">
+            <li id="ob-step-connect" data-go="connection">
+              <span class="ob-check">1</span>
+              <div><b>WhatsApp'ı bağla</b><small>QR veya telefon koduyla hesabını bağla.</small></div>
+            </li>
+            <li id="ob-step-contacts" data-go="contacts">
+              <span class="ob-check">2</span>
+              <div><b>Kişilerini gör</b><small>Kişiler ve gruplar otomatik gelir; istersen elle ekle.</small></div>
+            </li>
+            <li id="ob-step-automation" data-go="automations">
+              <span class="ob-check">3</span>
+              <div><b>İlk otomasyonunu kur</b><small>Saat, gün ve mesajı seç; gerisini sistem halleder.</small></div>
+            </li>
+          </ol>
+        </section>
+
         <!-- Bağlantı -->
         <section id="tab-connection" class="tab">
           <div class="card center">
@@ -163,6 +221,7 @@
             <div class="card-head">
               <h2 id="automation-title">Yeni otomasyon</h2>
             </div>
+            <p class="muted">Belirlediğin saat ve günlerde otomatik mesaj gönder. Örn: sevdiğine <b>günaydın</b>, müşterine <b>randevu hatırlatması</b> ya da gruba <b>etkinlik duyurusu</b>. Mesajı kendin yazabilir veya AI'ya yazdırabilirsin.</p>
             <form id="automation-form" class="form-grid">
               <input type="hidden" name="id" />
               <label class="field">
@@ -258,7 +317,7 @@
         <section id="tab-ai" class="tab hidden">
           <div class="card">
             <div class="card-head"><h2>AI Otomatik Yanıt</h2></div>
-            <p class="muted">Sana gelen WhatsApp mesajlarına Gemini otomatik cevap versin. Yalnızca birebir sohbetlerde çalışır.</p>
+            <p class="muted">Gelen mesajlara senin üslubunla otomatik cevap. <b>İşletmeysen</b> müşteri sorularını sen yokken yanıtlar; <b>kişisel</b> kullanımda meşgulken yerine konuşur. Yalnızca birebir sohbetlerde çalışır.</p>
             <form id="ai-form" class="form-grid">
               <label class="switch-row span-2"><span>Otomatik yanıtı aç</span>
                 <input type="checkbox" name="enabled" class="switch" />
@@ -293,6 +352,19 @@
               </div>
             </div>
           </div>
+
+          <div class="card about-card">
+            <div class="card-head"><h2>Hakkında</h2></div>
+            <p class="about-slogan">“Doğru mesaj, doğru kişiye, tam zamanında.”</p>
+            <p class="muted">WhatsApp Otomasyon, mesajlarınızı sizin yerinize zamanında gönderir ve gelen mesajlara akıllı yanıt verir. Tek araç, üç kullanım:</p>
+            <div class="about-uses">
+              <div class="about-use"><span>💚</span><div><b>Kişisel</b><small>Günaydın, sevgi mesajı, doğum günü, hatırlatma.</small></div></div>
+              <div class="about-use"><span>🏢</span><div><b>İşletme</b><small>Randevu/sipariş hatırlatması, otomatik müşteri yanıtı.</small></div></div>
+              <div class="about-use"><span>📣</span><div><b>Topluluk</b><small>Gruplara zamanlı duyuru ve etkinlik hatırlatması.</small></div></div>
+            </div>
+            <p class="muted small">Nasıl çalışır: WhatsApp'ını bağlarsın, kişi/grup seçersin, saat ve mesajı belirlersin; motor mesajları otomatik gönderir.</p>
+            <button id="onboarding-reopen" type="button" class="btn btn-ghost btn-sm">Başlarken rehberini tekrar göster</button>
+          </div>
         </section>
       </main>
     </div>
@@ -300,6 +372,6 @@
     <div id="toast" class="toast"></div>
   </div>
 
-  <script type="module" src="/assets/app.js?v=20260629-5"></script>
+  <script type="module" src="/assets/app.js?v=20260629-6"></script>
 </body>
 </html>

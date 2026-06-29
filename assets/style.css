@@ -82,17 +82,18 @@ h1, h2 { margin: 0; }
   display: grid;
   place-items: center;
   padding: 20px;
+  /* Yumuşak teal vurgulu açık zemin — hero metni her iki temada okunur kalsın diye
+     eski tam-genişlik teal şerit kaldırıldı (metinle çakışıp kontrastı düşürüyordu). */
   background:
-    linear-gradient(0deg, rgba(7,94,84,.04), rgba(7,94,84,.04)),
+    radial-gradient(1200px 600px at 12% -10%, rgba(18,140,126,.16), transparent 60%),
+    linear-gradient(0deg, rgba(7,94,84,.05), rgba(7,94,84,.05)),
     #d9dbd5;
   position: relative;
 }
-.auth-view::before {
-  content: "";
-  position: fixed; inset: 0;
-  height: 28vh;
-  background: var(--wa-dark);
-  z-index: 0;
+:root[data-theme="dark"] .auth-view {
+  background:
+    radial-gradient(1200px 600px at 12% -10%, rgba(37,211,102,.12), transparent 60%),
+    #0b141a;
 }
 .auth-card {
   position: relative; z-index: 1;
@@ -143,6 +144,46 @@ h1, h2 { margin: 0; }
   border: 0; background: transparent; cursor: pointer; font-size: 16px; opacity: .6; padding: 6px;
 }
 .pw-toggle.on { opacity: 1; }
+
+/* ---------- Giriş ekranı: tanıtım (landing) ---------- */
+.auth-layout {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 920px;
+  display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 28px; align-items: center;
+}
+.auth-hero { color: #0c2a25; padding: 8px 4px; }
+:root[data-theme="dark"] .auth-hero { color: #e9edef; }
+.hero-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.brand-mark--lg { width: 64px; height: 64px; border-radius: 18px; }
+.hero-name { font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+.hero-slogan { font-size: 30px; line-height: 1.15; font-weight: 800; letter-spacing: -.02em; margin: 0 0 12px; }
+.hero-mission { font-size: 15px; line-height: 1.55; opacity: .82; margin: 0 0 20px; max-width: 46ch; }
+.hero-features { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 12px; }
+.hero-features li { display: flex; align-items: flex-start; gap: 12px; }
+.hero-features .hf-ico {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px;
+  display: grid; place-items: center; font-size: 18px;
+  background: rgba(7,94,84,.1);
+}
+:root[data-theme="dark"] .hero-features .hf-ico { background: rgba(37,211,102,.16); }
+.hero-features b { display: block; font-size: 14.5px; }
+.hero-features small { color: inherit; opacity: .7; font-size: 12.5px; }
+.usecase-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.uc-chip {
+  font-size: 12.5px; font-weight: 700; padding: 7px 12px; border-radius: 999px;
+  background: rgba(7,94,84,.1); color: inherit; white-space: nowrap;
+}
+:root[data-theme="dark"] .uc-chip { background: rgba(37,211,102,.16); }
+/* Karttaki kompakt slogan + çipler yalnızca dar ekranda görünür */
+.hero-slogan-sm, .usecase-chips--sm { display: none; }
+.usecase-chips--sm { justify-content: center; margin: 10px 0 4px; }
+
+@media (max-width: 880px) {
+  .auth-layout { grid-template-columns: 1fr; max-width: 400px; gap: 0; }
+  .auth-hero { display: none; }                 /* geniş hero gizlenir */
+  .hero-slogan-sm { display: block; margin: 6px 0 0; }
+  .usecase-chips--sm { display: flex; }
+}
 
 /* ---------- Form alanları (ortak) ---------- */
 .field { display: grid; gap: 6px; }
@@ -406,6 +447,55 @@ main {
   box-shadow: var(--shadow);
 }
 
+/* ---------- Hakkında kartı ---------- */
+.about-slogan { font-size: 16px; font-weight: 700; color: var(--brand-text); margin: 0 0 10px; }
+.about-uses { display: grid; gap: 10px; margin: 4px 0 14px; }
+.about-use { display: flex; align-items: flex-start; gap: 12px; }
+.about-use > span {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; font-size: 17px;
+  display: grid; place-items: center; background: var(--accent-soft);
+}
+.about-use b { display: block; font-size: 14px; }
+.about-use small { color: var(--muted); font-size: 12.5px; }
+
+/* ---------- Başlarken (onboarding) ---------- */
+.onboarding {
+  max-width: 760px; margin: 0 auto 16px; padding: 16px 18px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--wa-green);
+}
+.ob-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ob-title { font-weight: 800; font-size: 16px; }
+.ob-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+.ob-head .btn { flex-shrink: 0; }
+.ob-steps { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.ob-steps li {
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+  padding: 11px 13px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-2);
+  transition: border-color .15s, background .15s;
+}
+.ob-steps li:hover { border-color: var(--wa-green); }
+.ob-check {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 13px; font-weight: 800;
+  background: var(--switch-off); color: #fff;
+}
+.ob-steps li.done .ob-check { background: var(--wa-green); }
+.ob-steps li.done .ob-check::after { content: "✓"; }
+.ob-steps li.done .ob-check { font-size: 0; }
+.ob-steps li.done .ob-check::after { font-size: 15px; }
+.ob-steps b { display: block; font-size: 14px; }
+.ob-steps small { color: var(--muted); font-size: 12.5px; }
+.ob-steps li.done b { text-decoration: line-through; opacity: .65; }
+
+/* Boş durum örnek çipleri (otomasyon listesi) */
+.empty-examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.empty-examples span {
+  font-size: 12.5px; font-weight: 600; padding: 6px 11px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+}
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
@@ -498,6 +588,8 @@ main {
   .form-grid .span-2 { grid-column: auto; }
   .card { padding: 18px; }
   .card-head h2 { font-size: 17px; }
+  .ob-head { flex-direction: column; }
+  .ob-head .btn { width: 100%; }
   /* Gün butonlari: 7 gün tek satirda esit genislikte (temiz day-picker) */
   .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
   .days label { display: block; }

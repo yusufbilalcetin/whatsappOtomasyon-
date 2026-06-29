@@ -256,9 +256,21 @@ autoForm.onsubmit = async (e) => {
 };
 
 function renderAutomations(items) {
+  automationCount = items.length;
+  renderOnboarding();
   const ul = $('#automation-list');
   ul.innerHTML = '';
-  if (!items.length) { ul.innerHTML = '<li class="li-main"><div class="li-sub">Henüz otomasyon yok.</div></li>'; return; }
+  if (!items.length) {
+    ul.innerHTML = `<li class="li-main"><div class="li-sub">
+      Henüz otomasyon yok. İlk örneğini kurmayı dene:
+      <div class="empty-examples">
+        <span>💚 Sevdiğine “günaydın”</span>
+        <span>🏢 Müşteriye randevu hatırlatması</span>
+        <span>📣 Gruba etkinlik duyurusu</span>
+      </div>
+    </div></li>`;
+    return;
+  }
   items.forEach((a) => {
     const ids = a.contactIds?.length ? a.contactIds : (a.contactId ? [a.contactId] : []);
     const names = ids.map((id) => {
@@ -472,6 +484,7 @@ function renderContactPicker() {
 let contactsRenderTimer;
 function renderContacts(items) {
   contacts = items; // veri hemen guncel olsun (arama/secim son veriyi kullansin)
+  renderOnboarding();
   clearTimeout(contactsRenderTimer);
   contactsRenderTimer = setTimeout(() => {
     // Kullanıcı arama yazıyor veya isim düzenliyorsa listeyi bozma.
@@ -549,6 +562,8 @@ function formatPairingCode(code) {
 function renderEngine(s = {}) {
   const beat = s.engineHeartbeat?.toDate ? s.engineHeartbeat.toDate() : null;
   const engineOnline = beat && (Date.now() - beat.getTime() < 3 * 60 * 1000);
+  lastWaState = s.waState || '';
+  renderOnboarding();
 
   const pill = $('#engine-pill');
   const pillText = $('#engine-text');
@@ -715,7 +730,44 @@ function showAuth() {
 function showApp() {
   $('#auth-view').classList.add('hidden');
   $('#app-view').classList.remove('hidden');
+  renderOnboarding();
 }
+
+// =================== Başlarken (onboarding) ===================
+const ONBOARDING_KEY = 'wa_onboarding_done';
+let lastWaState = '';
+let automationCount = 0;
+
+function onboardingDone() {
+  try { return localStorage.getItem(ONBOARDING_KEY) === '1'; } catch { return false; }
+}
+function setOnboardingDone(done) {
+  try { done ? localStorage.setItem(ONBOARDING_KEY, '1') : localStorage.removeItem(ONBOARDING_KEY); } catch { /* yoksay */ }
+}
+
+// Başlarken kartını duruma göre (bağlandı mı, kişi var mı, otomasyon var mı) günceller.
+function renderOnboarding() {
+  const box = $('#onboarding');
+  if (!box) return;
+  if (onboardingDone()) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const setStep = (id, done) => $('#' + id)?.classList.toggle('done', done);
+  setStep('ob-step-connect', lastWaState === 'open');
+  setStep('ob-step-contacts', contacts.length > 0);
+  setStep('ob-step-automation', automationCount > 0);
+}
+
+// Adımlara tıklayınca ilgili sekmeye git.
+$$('#onboarding .ob-steps li').forEach((li) => {
+  li.onclick = () => $('.seg[data-tab="' + li.dataset.go + '"]')?.click();
+});
+$('#onboarding-close').onclick = () => { setOnboardingDone(true); renderOnboarding(); };
+$('#onboarding-reopen').onclick = () => {
+  setOnboardingDone(false);
+  $('.seg[data-tab="connection"]')?.click();
+  renderOnboarding();
+  toast('Başlarken rehberi tekrar açıldı.');
+};
 
 function startListeners() {
   toggleModeFields();
