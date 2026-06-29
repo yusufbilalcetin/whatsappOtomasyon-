@@ -11,6 +11,7 @@ const active = new Map(); // uid -> { unsubAutomations }
 
 async function addUser(uid) {
   if (active.has(uid)) return;
+  active.set(uid, {}); // tekrar girisi ANINDA engelle (async bosluk yarisini onler)
   logger.info({ uid }, 'Kullanici eklendi, baglaniliyor.');
   await writeHeartbeat(uid); // panelin "motor cevrimici" gostergesi hemen yansisin
   await startWhatsAppFor(uid);
