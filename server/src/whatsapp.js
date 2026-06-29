@@ -10,7 +10,7 @@ import QRCode from 'qrcode';
 import fs from 'node:fs/promises';
 import { config } from './config.js';
 import { logger } from './logger.js';
-import { setWhatsappStatus } from './firestore.js';
+import { setWhatsappStatus, clearUserData } from './firestore.js';
 
 // Her kullanici icin ayri WhatsApp oturumu. uid -> { sock, state }
 const sockets = new Map();
@@ -182,14 +182,18 @@ export async function startWhatsAppFor(uid) {
     for (const msg of messages) {
       const jid = msg.key?.remoteJid || '';
       if (msg.key?.fromMe) continue;
-      if (jid.endsWith('@g.us') || jid.endsWith('@broadcast') || jid === 'status@broadcast') continue;
+      if (jid === 'status@broadcast' || jid.endsWith('@broadcast')) continue;
 
+      const isGroup = jid.endsWith('@g.us');
       // Mesaj atan kisinin WhatsApp adini (pushName) kisilere yaz — isimler zamanla dolar.
-      if (msg.pushName && jid.endsWith('@s.whatsapp.net')) {
-        emitContacts(uid, [{ id: jid, notify: msg.pushName }], 'messages.pushName');
+      // Grup mesajinda gonderen msg.key.participant'ta; birebirde remoteJid'in kendisi.
+      const senderJid = isGroup ? (msg.key?.participant || '') : jid;
+      if (msg.pushName && senderJid.endsWith('@s.whatsapp.net')) {
+        emitContacts(uid, [{ id: senderJid, notify: msg.pushName }], isGroup ? 'group.pushName' : 'messages.pushName');
       }
 
-      if (!incomingHandler) continue;
+      // AI otomatik-yanit: yalnizca birebir sohbet.
+      if (!incomingHandler || isGroup) continue;
       if ((msg.messageTimestamp || 0) < startedAt) continue; // eski mesajlari atla
       const text = extractText(msg);
       if (!text.trim()) continue;
@@ -222,10 +226,10 @@ export async function startWhatsAppFor(uid) {
         logger.info({ uid }, 'WhatsApp baglantisi acildi.');
         setWhatsappStatus(uid, 'open', null).catch(() => {});
         syncGroups(uid, sock); // gruplari cek
-        // Telefonda kayitli kisi isimlerini cektir (ilk acilista tam senkron).
+        // App-state'teki kisi isimlerini cektir (hafif senkron; "tried remove" gurultusunu azaltir).
         if (!entry.contactsSynced) {
           entry.contactsSynced = true;
-          syncContactNames(uid, sock, { full: true });
+          syncContactNames(uid, sock, { full: false });
         }
       }
     }
@@ -277,6 +281,9 @@ export async function resetWhatsAppFor(uid) {
     try { entry.sock.end(); } catch { /* yoksay */ }
     sockets.delete(uid);
   }
+
+  // Sistemi sifirla: kisileri ve kayitlari temizle. Yeni QR okununca veriler bastan cekilir.
+  try { await clearUserData(uid); } catch (e) { logger.warn({ uid, err: e.message }, 'Kullanici verisi sifirlanamadi.'); }
 
   await clearAuthAndStartQr(uid);
 }

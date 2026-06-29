@@ -12,9 +12,11 @@ import { db } from '../src/firestore.js';
 
 const args = process.argv.slice(2);
 const apply = args.includes('--apply');
+const all = args.includes('--all'); // --all: TUM kisileri/gruplari sil (bastan senkron icin)
 const uidArg = args.find((a) => !a.startsWith('--'));
 
 function shouldDelete(c) {
+  if (all) return true; // hepsini sil
   return c.type !== 'group'
     && c.source !== 'manual'
     && !c.customName

@@ -35,6 +35,30 @@ export function watchUsers(onChange) {
   );
 }
 
+// Bir koleksiyondaki tum dokumanlari parti parti siler.
+async function deleteAllDocs(colRef) {
+  let total = 0;
+  while (true) {
+    const snap = await colRef.limit(400).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    total += snap.size;
+    if (snap.size < 400) break;
+  }
+  return total;
+}
+
+// "Baglantiyi kes" sonrasi sistemi tamamen sifirla: kisiler + kayitlar + otomasyonlar.
+export async function clearUserData(uid) {
+  const contacts = await deleteAllDocs(contactsCol(uid));
+  const logs = await deleteAllDocs(logsCol(uid));
+  const automations = await deleteAllDocs(automationsCol(uid));
+  logger.info({ uid, contacts, logs, automations }, 'Kullanici verisi sifirlandi (baglanti kesildi).');
+  return { contacts, logs, automations };
+}
+
 // --- Contacts ---
 export async function getContact(uid, id) {
   if (!id) return null;
