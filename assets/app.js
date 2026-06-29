@@ -10,8 +10,12 @@ import {
 import { firebaseConfig } from './firebase-config.js';
 
 const app = initializeApp(firebaseConfig);
+// Long-polling'i ZORLAMAK yerine otomatik algilat (v9.22+ onerisi). Zorlamak mobil
+// aglarda performans dususu ve kararsiz baglantiya yol aciyordu; auto-detect en
+// uygun transportu (WebChannel/long-polling) kendisi secer.
 const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
+  experimentalAutoDetectLongPolling: true,
+  ignoreUndefinedProperties: true,
 });
 const auth = getAuth(app);
 
@@ -61,7 +65,14 @@ function firestoreErrorMessage(err) {
   return err?.message || 'Firestore bağlantı hatası.';
 }
 
+// 'unavailable' GECICI bir hatadir; Firestore SDK'si arka planda otomatik yeniden
+// baglanir. Her denemede toast basmak "surekli internet hatasi" gibi gorunuyordu.
+// Bu yuzden gecici hatalari yutuyoruz; sadece kalici hatalari (izin/kota) gosteririz.
 function handleFirestoreError(err) {
+  const code = err?.code;
+  if (code === 'unavailable' || code === 'cancelled' || code === 'deadline-exceeded') {
+    return; // gecici: SDK kendisi yeniden dener
+  }
   toast(firestoreErrorMessage(err));
 }
 
@@ -149,12 +160,32 @@ function normalizePhone(phone) {
 }
 
 // =================== Sekmeler ===================
+// --- Mobil sol çekmece (drawer) menü ---
+const sideMenu = $('#side-menu');
+const menuToggle = $('#menu-toggle');
+const menuBackdrop = $('#menu-backdrop');
+function setMenu(open) {
+  sideMenu.classList.toggle('open', open);
+  menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) {
+    menuBackdrop.hidden = false;
+    requestAnimationFrame(() => menuBackdrop.classList.add('show'));
+  } else {
+    menuBackdrop.classList.remove('show');
+    setTimeout(() => { menuBackdrop.hidden = true; }, 250);
+  }
+}
+menuToggle.onclick = () => setMenu(!sideMenu.classList.contains('open'));
+menuBackdrop.onclick = () => setMenu(false);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMenu(false); });
+
 $$('.seg').forEach((btn) => {
   btn.onclick = () => {
     $$('.seg').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
     $$('.tab').forEach((t) => t.classList.add('hidden'));
     $('#tab-' + btn.dataset.tab).classList.remove('hidden');
+    setMenu(false); // sekme seçilince çekmeceyi kapat
   };
 });
 
