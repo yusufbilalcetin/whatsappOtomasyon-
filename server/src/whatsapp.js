@@ -251,8 +251,9 @@ export async function startWhatsAppFor(uid) {
         return;
       }
       if (qrTimedOut) {
-        // QR okutulmadan suresi doldu: tekrar deneme firtinasi yerine bekleyen QR durumunu birak.
-        setWhatsappStatus(uid, 'disconnected', null).catch(() => {});
+        // QR okutulmadan suresi doldu: panelde her zaman taze QR olsun diye kisa sure sonra yeni QR uret.
+        setWhatsappStatus(uid, 'connecting').catch(() => {});
+        setTimeout(() => startWhatsAppFor(uid).catch((e) => logger.error(e)), 8000);
         return;
       }
       setWhatsappStatus(uid, 'connecting').catch(() => {});

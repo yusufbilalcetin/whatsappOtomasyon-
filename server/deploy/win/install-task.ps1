@@ -13,8 +13,10 @@ if (-not (Test-Path $vbs)) {
 
 # Onkosul uyarilari
 $serverDir = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-if (-not (Test-Path (Join-Path $serverDir 'service-account.json'))) {
-  Write-Host "UYARI: $serverDir\service-account.json YOK. Motor Firestore'a baglanamaz. Once bu dosyayi koy." -ForegroundColor Yellow
+$adcPath = Join-Path $env:APPDATA 'gcloud\application_default_credentials.json'
+if (-not (Test-Path (Join-Path $serverDir 'service-account.json')) -and -not (Test-Path $adcPath)) {
+  Write-Host "UYARI: Ne service-account.json ne de gcloud ADC bulundu. Motor Firestore'a baglanamayabilir." -ForegroundColor Yellow
+  Write-Host "  Cozum: 'gcloud auth application-default login' veya service-account.json ekle." -ForegroundColor Yellow
 }
 if (-not (Test-Path (Join-Path $serverDir '.env'))) {
   Write-Host "UYARI: $serverDir\.env YOK. .env.example'i kopyalayip doldur." -ForegroundColor Yellow

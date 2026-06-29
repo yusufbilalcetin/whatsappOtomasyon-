@@ -1,3 +1,4 @@
+import 'dotenv/config'; // .env'i firebase-admin baslatmadan ONCE yukle (projectId icin sart)
 import { initializeApp, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import fs from 'node:fs';
