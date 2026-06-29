@@ -250,26 +250,58 @@ onAuthStateChanged(auth, async (user) => {
   startListeners();
 });
 
-// --- Giriş formu ---
+// --- Giriş / Kayıt ---
 const authForm = $('#auth-form');
 let authMode = 'login'; // 'login' | 'signup'
-$('#auth-toggle').onclick = () => {
-  authMode = authMode === 'login' ? 'signup' : 'login';
-  $('#auth-submit').textContent = authMode === 'login' ? 'Giriş yap' : 'Kayıt ol';
-  $('#auth-toggle').textContent = authMode === 'login' ? 'Hesabın yok mu? Kayıt ol' : 'Zaten hesabın var mı? Giriş yap';
+
+function showAuthError(msg) {
+  const el = $('#auth-error');
+  if (!msg) { el.classList.add('hidden'); el.textContent = ''; return; }
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  $$('.auth-tab').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  $('#confirm-field').classList.toggle('hidden', mode !== 'signup');
+  $('#auth-submit').textContent = mode === 'login' ? 'Giriş yap' : 'Kayıt ol';
+  $('#auth-subtitle').textContent = mode === 'login' ? 'Hesabınıza giriş yapın' : 'Yeni hesap oluşturun';
+  authForm.password.setAttribute('autocomplete', mode === 'login' ? 'current-password' : 'new-password');
+  showAuthError('');
+}
+$$('.auth-tab').forEach((b) => (b.onclick = () => setAuthMode(b.dataset.mode)));
+
+$('#pw-toggle').onclick = () => {
+  const inp = authForm.password;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  $('#pw-toggle').classList.toggle('on', inp.type === 'text');
 };
+
 authForm.onsubmit = async (e) => {
   e.preventDefault();
+  showAuthError('');
   const email = authForm.email.value.trim();
   const pass = authForm.password.value;
+  if (pass.length < 6) return showAuthError('Şifre en az 6 karakter olmalı.');
+  if (authMode === 'signup' && pass !== authForm.password2.value) {
+    return showAuthError('Şifreler eşleşmiyor.');
+  }
+  const btn = $('#auth-submit');
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = 'Lütfen bekleyin…';
   try {
     if (authMode === 'login') await signInWithEmailAndPassword(auth, email, pass);
     else await createUserWithEmailAndPassword(auth, email, pass);
-  } catch (err) { toast(authError(err)); }
+  } catch (err) { showAuthError(authError(err)); }
+  finally { btn.disabled = false; btn.textContent = prev; }
 };
+
 $('#google-btn').onclick = async () => {
+  showAuthError('');
   try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-  catch (err) { toast(authError(err)); }
+  catch (err) { showAuthError(authError(err)); }
 };
 $('#logout-btn').onclick = () => signOut(auth);
 
