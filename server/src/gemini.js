@@ -26,3 +26,16 @@ export async function generateMessage(prompt) {
   logger.info({ prompt }, 'Gemini mesaj uretti.');
   return text;
 }
+
+// Gelen bir WhatsApp mesajina, verilen persona ile kisa bir cevap uretir.
+export async function generateReply(persona, incomingText) {
+  const instruction =
+    (persona?.trim()
+      ? `Sen bir WhatsApp kullanicisi adina cevap yaziyorsun. Karakterin/uslubun: ${persona.trim()}\n\n`
+      : 'Sen yardimsever, samimi bir WhatsApp asistanisin.\n\n') +
+    'Asagidaki gelen mesaja kisa, dogal, tek bir WhatsApp cevabi yaz. ' +
+    'Sadece cevap metnini dondur, tirnak veya aciklama ekleme.\n\nGelen mesaj: ' +
+    incomingText;
+  const result = await getModel().generateContent(instruction);
+  return result.response.text().trim();
+}

@@ -98,10 +98,10 @@
               <span>İsim</span>
               <input name="name" required placeholder="Sabah mesajı" />
             </label>
-            <label class="field">
-              <span>Kişi</span>
-              <select name="contactId" required></select>
-            </label>
+            <div class="field span-2">
+              <span>Kişiler (bir veya birden fazla)</span>
+              <div class="contact-checks" id="contact-checks"></div>
+            </div>
             <label class="field">
               <span>Saat</span>
               <input name="time" type="time" required value="08:00" />
@@ -170,10 +170,24 @@
 
       <!-- AI -->
       <section id="tab-ai" class="tab hidden">
-        <div class="card center">
+        <div class="card">
           <div class="card-head"><h2>AI Otomatik Yanıt</h2></div>
-          <p class="muted">Gelen mesajlara Gemini ile otomatik cevap. Bu özellik hazırlanıyor.</p>
-          <button class="btn btn-ghost" disabled>Pasif · yakında</button>
+          <p class="muted">Sana gelen WhatsApp mesajlarına Gemini otomatik cevap versin. Yalnızca birebir sohbetlerde çalışır.</p>
+          <form id="ai-form" class="form-grid">
+            <label class="switch-row span-2"><span>Otomatik yanıtı aç</span>
+              <input type="checkbox" name="enabled" class="switch" />
+            </label>
+            <label class="field span-2"><span>Karakter / üslup (persona)</span>
+              <textarea name="persona" rows="3" placeholder="Örn: Kibar, samimi ve kısa cevap veren bir asistan gibi yaz."></textarea>
+            </label>
+            <label class="switch-row span-2"><span>Sadece kayıtlı kişilere yanıt ver</span>
+              <input type="checkbox" name="onlyContacts" class="switch" />
+            </label>
+            <div class="actions span-2">
+              <button type="submit" class="btn btn-primary">Kaydet</button>
+            </div>
+          </form>
+          <p class="muted small">Not: Gemini API anahtarı motorda tanımlı olmalı (.env → GEMINI_API_KEY).</p>
         </div>
       </section>
     </main>

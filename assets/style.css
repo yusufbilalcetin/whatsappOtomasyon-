@@ -117,6 +117,17 @@ select {
 }
 .days input:checked + i { background: var(--blue); color: #fff; }
 
+/* Kişi seçim çipleri (çoklu seçim) */
+.contact-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.contact-checks label { position: relative; cursor: pointer; }
+.contact-checks input { position: absolute; opacity: 0; pointer-events: none; }
+.contact-checks i {
+  display: inline-flex; align-items: center; padding: 9px 14px; font-style: normal;
+  font-size: 14px; font-weight: 500; border-radius: 999px;
+  background: var(--surface-2); color: var(--muted); transition: all .15s;
+}
+.contact-checks input:checked + i { background: var(--blue); color: #fff; }
+
 /* Switch */
 .switch-row { display: flex; align-items: center; justify-content: space-between; }
 .switch-row > span { font-size: 15px; }

@@ -41,31 +41,57 @@ async function runAutomation(uid, automation) {
     return;
   }
 
-  const contact = await getContact(uid, automation.contactId);
-  if (!contact) {
+  // Coklu kisi: contactIds (yoksa eski tek contactId).
+  const ids = automation.contactIds?.length ? automation.contactIds
+    : (automation.contactId ? [automation.contactId] : []);
+  if (!ids.length) {
     await addLog(uid, {
       automationId: automation.id, contactName: '', phone: '', message: '',
-      status: 'Hata', error: 'Secili kisi bulunamadi.',
+      status: 'Hata', error: 'Secili kisi yok.',
     });
     return;
   }
 
+  let text;
   try {
-    const text = await resolveMessage(automation);
-    const { phone } = await sendMessageFor(uid, contact.phone, text);
-    await markAutomationRun(uid, automation.id, today);
-    await addLog(uid, {
-      automationId: automation.id, contactName: contact.name, phone,
-      message: text, status: 'Basarili', error: null,
-    });
-    logger.info({ uid, id: automation.id, to: contact.name }, 'Otomatik mesaj gonderildi.');
+    text = await resolveMessage(automation);
   } catch (err) {
     await addLog(uid, {
-      automationId: automation.id, contactName: contact.name, phone: contact.phone,
-      message: '', status: 'Hata', error: err.message,
+      automationId: automation.id, contactName: '', phone: '', message: '',
+      status: 'Hata', error: err.message,
     });
-    logger.error({ uid, id: automation.id, err: err.message }, 'Otomatik gonderim hatasi.');
+    return;
   }
+
+  let anySuccess = false;
+  for (const id of ids) {
+    const contact = await getContact(uid, id);
+    if (!contact) {
+      await addLog(uid, {
+        automationId: automation.id, contactName: '', phone: '', message: '',
+        status: 'Hata', error: 'Kisi bulunamadi.',
+      });
+      continue;
+    }
+    try {
+      const { phone } = await sendMessageFor(uid, contact.phone, text);
+      anySuccess = true;
+      await addLog(uid, {
+        automationId: automation.id, contactName: contact.name, phone,
+        message: text, status: 'Basarili', error: null,
+      });
+      logger.info({ uid, id: automation.id, to: contact.name }, 'Otomatik mesaj gonderildi.');
+    } catch (err) {
+      await addLog(uid, {
+        automationId: automation.id, contactName: contact.name, phone: contact.phone,
+        message: '', status: 'Hata', error: err.message,
+      });
+      logger.error({ uid, id: automation.id, err: err.message }, 'Otomatik gonderim hatasi.');
+    }
+  }
+
+  // Gunde-bir korumasi: en az bir gonderim basarili olduysa isaretle.
+  if (anySuccess) await markAutomationRun(uid, automation.id, today);
 }
 
 function scheduleOne(uid, automation) {

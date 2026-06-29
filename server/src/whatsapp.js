@@ -13,6 +13,17 @@ import { setWhatsappStatus } from './firestore.js';
 // Her kullanici icin ayri WhatsApp oturumu. uid -> { sock, state }
 const sockets = new Map();
 
+// Gelen mesaj (AI otomatik-yanit) icin disaridan kaydedilen isleyici.
+let incomingHandler = null;
+export function setIncomingHandler(fn) { incomingHandler = fn; }
+
+const startedAt = Math.floor(Date.now() / 1000); // motor baslamadan onceki mesajlari yoksay
+
+function extractText(msg) {
+  const m = msg.message || {};
+  return m.conversation || m.extendedTextMessage?.text || '';
+}
+
 let cachedVersion = null;
 async function waVersion() {
   if (!cachedVersion) cachedVersion = (await fetchLatestBaileysVersion()).version;
@@ -36,6 +47,21 @@ export async function startWhatsAppFor(uid) {
   sockets.set(uid, entry);
 
   sock.ev.on('creds.update', saveCreds);
+
+  // Gelen mesajlar (AI otomatik-yanit). Sadece birebir sohbet, bize gelen, metinli.
+  sock.ev.on('messages.upsert', ({ messages, type }) => {
+    if (type !== 'notify' || !incomingHandler) return;
+    for (const msg of messages) {
+      const jid = msg.key?.remoteJid || '';
+      if (msg.key?.fromMe) continue;
+      if (jid.endsWith('@g.us') || jid.endsWith('@broadcast') || jid === 'status@broadcast') continue;
+      if ((msg.messageTimestamp || 0) < startedAt) continue; // eski mesajlari atla
+      const text = extractText(msg);
+      if (!text.trim()) continue;
+      Promise.resolve(incomingHandler(uid, { jid, text })).catch((e) =>
+        logger.error({ uid, err: e.message }, 'AI yanit isleyici hatasi.'));
+    }
+  });
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, qr, lastDisconnect } = update;
@@ -98,4 +124,11 @@ export async function sendMessageFor(uid, phone, text) {
   const jid = jidEncode(normalized.replace('+', ''), 's.whatsapp.net');
   await entry.sock.sendMessage(jid, { text });
   return { phone: normalized };
+}
+
+// Belirli bir sohbete (jid) dogrudan gonderim — AI otomatik-yanit icin.
+export async function sendRawTo(uid, jid, text) {
+  const entry = sockets.get(uid);
+  if (!entry || entry.state !== 'open') throw new Error('WhatsApp bagli degil.');
+  await entry.sock.sendMessage(jid, { text });
 }

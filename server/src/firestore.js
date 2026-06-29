@@ -41,6 +41,10 @@ export async function getContact(uid, id) {
   const doc = await contactsCol(uid).doc(id).get();
   return doc.exists ? { id: doc.id, ...doc.data() } : null;
 }
+export async function listContactPhones(uid) {
+  const snap = await contactsCol(uid).get();
+  return snap.docs.map((d) => d.data().phone).filter(Boolean);
+}
 
 // --- Automations ---
 export async function listAutomations(uid) {
@@ -64,6 +68,30 @@ export function watchAutomations(uid, onChange) {
 // --- Logs ---
 export async function addLog(uid, entry) {
   await logsCol(uid).add({ ...entry, sentAt: FieldValue.serverTimestamp() });
+}
+
+// --- Komutlar (panel -> motor): users/{uid}/commands ---
+const commandsCol = (uid) => userDoc(uid).collection('commands');
+export function watchCommands(uid, onAdded) {
+  return commandsCol(uid).onSnapshot(
+    (snap) => {
+      snap.docChanges().forEach((ch) => {
+        if (ch.type === 'added') onAdded({ id: ch.doc.id, ...ch.doc.data() });
+      });
+    },
+    (err) => logger.error({ uid, err: err.message }, 'commands dinleyici hatasi.'),
+  );
+}
+export async function deleteCommand(uid, id) {
+  await commandsCol(uid).doc(id).delete();
+}
+
+// --- Kullanici dokumanini izle (autoReply config cache icin) ---
+export function watchUserDoc(uid, onChange) {
+  return userDoc(uid).onSnapshot(
+    (d) => onChange(d.data() || {}),
+    (err) => logger.error({ uid, err: err.message }, 'user doc dinleyici hatasi.'),
+  );
 }
 
 // --- Kullanici durum (panel okur): users/{uid} dokumaninda tutulur ---

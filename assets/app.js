@@ -61,6 +61,13 @@ $$('.seg').forEach((btn) => {
 
 // =================== Otomasyonlar ===================
 const autoForm = $('#automation-form');
+function selectedContactIds() {
+  return $$('#contact-checks input[type="checkbox"]:checked').map((c) => c.value);
+}
+function setSelectedContacts(ids) {
+  const set = new Set(ids || []);
+  $$('#contact-checks input[type="checkbox"]').forEach((c) => (c.checked = set.has(c.value)));
+}
 function toggleModeFields() {
   const mode = autoForm.messageMode.value;
   $$('#automation-form [data-mode]').forEach((el) => el.classList.toggle('hidden', el.dataset.mode !== mode));
@@ -71,6 +78,7 @@ function resetAutomationForm() {
   autoForm.reset();
   autoForm.id.value = '';
   $$('#automation-form input[name="days"]').forEach((cb) => (cb.checked = true));
+  setSelectedContacts([]);
   autoForm.time.value = '08:00';
   $('#automation-title').textContent = 'Yeni otomasyon';
   toggleModeFields();
@@ -82,13 +90,14 @@ autoForm.onsubmit = async (e) => {
   const fd = new FormData(autoForm);
   const days = fd.getAll('days');
   if (!days.length) return toast('En az bir gün seçin.');
-  if (!fd.get('contactId')) return toast('Önce bir kişi ekleyin.');
+  const contactIds = selectedContactIds();
+  if (!contactIds.length) return toast('En az bir kişi seçin.');
   const mode = fd.get('messageMode');
   if (mode === 'fixed' && !fd.get('messageText').trim()) return toast('Mesaj yazın.');
   if (mode === 'ai' && !fd.get('aiPrompt').trim()) return toast('AI isteği yazın.');
   const payload = {
     name: fd.get('name').trim(),
-    contactId: fd.get('contactId'),
+    contactIds,
     time: fd.get('time'),
     messageMode: mode,
     messageText: fd.get('messageText').trim(),
@@ -111,20 +120,29 @@ function renderAutomations(items) {
   ul.innerHTML = '';
   if (!items.length) { ul.innerHTML = '<li class="li-main"><div class="li-sub">Henüz otomasyon yok.</div></li>'; return; }
   items.forEach((a) => {
-    const c = contacts.find((x) => x.id === a.contactId);
+    const ids = a.contactIds?.length ? a.contactIds : (a.contactId ? [a.contactId] : []);
+    const names = ids.map((id) => contacts.find((x) => x.id === id)?.name).filter(Boolean);
+    const who = names.length ? names.join(', ') : '(kişi yok)';
     const days = (a.days || []).map((d) => dayTr[d] || d).join(' ');
     const modeTr = { fixed: 'Mesaj', ai: 'AI' }[a.messageMode] || a.messageMode;
     const li = document.createElement('li');
     li.innerHTML = `
       <div class="li-main">
         <div class="li-title">${a.name} <span class="badge ${a.enabled ? 'ok' : 'off'}">${a.enabled ? 'aktif' : 'pasif'}</span></div>
-        <div class="li-sub">${a.time} · ${c ? c.name : '(kişi yok)'} · ${modeTr} · ${days}</div>
+        <div class="li-sub">${a.time} · ${who} · ${modeTr} · ${days}</div>
       </div>
       <div class="li-actions">
+        <button class="icon-btn" title="Hemen gönder">▶</button>
         <button class="icon-btn" title="Düzenle">✎</button>
         <button class="icon-btn danger" title="Sil">🗑</button>
       </div>`;
-    const [edit, del] = li.querySelectorAll('button');
+    const [test, edit, del] = li.querySelectorAll('button');
+    test.onclick = async () => {
+      try {
+        await addDoc(uCol('commands'), { type: 'runNow', automationId: a.id, createdAt: serverTimestamp() });
+        toast('Gönderiliyor…');
+      } catch (e) { toast(e.message); }
+    };
     edit.onclick = () => fillAutomation(a);
     del.onclick = async () => { if (confirm('Silinsin mi?')) { await deleteDoc(uItem('automations', a.id)); toast('Silindi.'); } };
     ul.appendChild(li);
@@ -134,7 +152,7 @@ function renderAutomations(items) {
 function fillAutomation(a) {
   autoForm.id.value = a.id;
   autoForm.name.value = a.name || '';
-  autoForm.contactId.value = a.contactId || '';
+  setSelectedContacts(a.contactIds?.length ? a.contactIds : (a.contactId ? [a.contactId] : []));
   autoForm.time.value = a.time || '08:00';
   autoForm.messageMode.value = a.messageMode || 'fixed';
   autoForm.messageText.value = a.messageText || '';
@@ -177,8 +195,12 @@ function renderContacts(items) {
     del.onclick = async () => { if (confirm('Silinsin mi?')) { await deleteDoc(uItem('contacts', c.id)); toast('Silindi.'); } };
     ul.appendChild(li);
   });
-  autoForm.contactId.innerHTML = items.map((c) => `<option value="${c.id}">${c.name}</option>`).join('')
-    || '<option value="">(önce kişi ekleyin)</option>';
+  // Otomasyon formundaki kişi seçim listesi (çoklu seçim) — mevcut seçimi koru.
+  const checks = $('#contact-checks');
+  const prev = new Set(selectedContactIds());
+  checks.innerHTML = items.length
+    ? items.map((c) => `<label><input type="checkbox" value="${c.id}" ${prev.has(c.id) ? 'checked' : ''} /><i>${c.name}</i></label>`).join('')
+    : '<span class="muted small">Önce Kişiler sekmesinden kişi ekleyin.</span>';
 }
 
 // =================== Kayıtlar ===================
@@ -221,6 +243,30 @@ function renderEngine(s = {}) {
   else text.textContent = 'WhatsApp bağlantısı bekleniyor…';
 }
 
+// =================== AI Otomatik Yanıt ===================
+const aiForm = $('#ai-form');
+function renderAiConfig(s = {}) {
+  // Kullanıcı formla uğraşırken üzerine yazma.
+  if (aiForm.contains(document.activeElement)) return;
+  const cfg = s.autoReply || {};
+  aiForm.enabled.checked = !!cfg.enabled;
+  aiForm.persona.value = cfg.persona || '';
+  aiForm.onlyContacts.checked = !!cfg.onlyContacts;
+}
+aiForm.onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await setDoc(userRef(), {
+      autoReply: {
+        enabled: aiForm.enabled.checked,
+        persona: aiForm.persona.value.trim(),
+        onlyContacts: aiForm.onlyContacts.checked,
+      },
+    }, { merge: true });
+    toast('AI ayarları kaydedildi.');
+  } catch (err) { toast(err.message); }
+};
+
 // =================== Giriş / Oturum ===================
 function showAuth() {
   $('#auth-view').classList.remove('hidden');
@@ -236,7 +282,7 @@ function startListeners() {
   unsubs.push(onSnapshot(query(uCol('contacts'), orderBy('name')), (s) => renderContacts(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
   unsubs.push(onSnapshot(uCol('automations'), (s) => renderAutomations(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
   unsubs.push(onSnapshot(query(uCol('logs'), orderBy('sentAt', 'desc'), limit(100)), (s) => renderLogs(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
-  unsubs.push(onSnapshot(userRef(), (d) => renderEngine(d.data())));
+  unsubs.push(onSnapshot(userRef(), (d) => { const data = d.data() || {}; renderEngine(data); renderAiConfig(data); }));
 }
 
 onAuthStateChanged(auth, async (user) => {
