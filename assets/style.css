@@ -53,13 +53,23 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+html {
+  /* iOS yatay donuste yaziyi sismeyi engelle */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body {
   margin: 0;
   font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
   color: var(--text);
   background: var(--panel-2);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; /* hicbir cihazda yatay kayma olmasin */
 }
+/* Gorsel/medya hicbir zaman kabini tasirmasin (her ekran genisliginde guvenli) */
+img, svg, video, canvas { max-width: 100%; }
+/* Uzun kelimeler/baglantilar dar ekranlarda tasmasin */
+.li-sub, .li-title, p, h1, h2 { overflow-wrap: anywhere; }
 .hidden { display: none !important; }
 .muted { color: var(--muted); }
 .small { font-size: 12.5px; }
@@ -405,18 +415,19 @@ main {
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ===========================================================
-   Mobil / Responsive
+   Mobil / Responsive — TÜM telefonlar (dik + yatay)
    - Çentik (safe-area) desteği
-   - Sol menü → uygulama tarzı sabit alt tab bar
+   - Sol menü → soldan açılan çekmece (drawer)
+   - Kapsam: genişlik ≤720px VEYA yatay (landscape) kısa-yükseklik telefonlar
    =========================================================== */
 
 /* iOS Safari'de 16px altı input odaklanınca otomatik zoom yapar; bunu engelle. */
-@media (max-width: 720px) {
+@media (max-width: 720px), (max-height: 520px) and (orientation: landscape) {
   input, select, textarea { font-size: 16px; }
 }
 
-/* ---------- Tablet ve altı ---------- */
-@media (max-width: 720px) {
+/* ---------- Telefon düzeni (dik + yatay) ---------- */
+@media (max-width: 720px), (max-height: 520px) and (orientation: landscape) {
   /* Üst bar: çentik üst boşluğu + sticky kalsın */
   .topbar {
     padding: 0 12px;
@@ -481,6 +492,10 @@ main {
   .form-grid .span-2 { grid-column: auto; }
   .card { padding: 18px; }
   .card-head h2 { font-size: 17px; }
+  /* Gün butonlari her ekran genisliginde esit yayilsin (tek/iki satira temiz sarar) */
+  .days { gap: 6px; }
+  .days label { flex: 1 1 auto; }
+  .days i { width: 100%; min-width: 40px; }
   .actions { flex-direction: column-reverse; }
   .actions .btn { width: 100%; }
 
