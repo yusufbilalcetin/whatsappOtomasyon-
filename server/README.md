@@ -32,6 +32,10 @@ Firestore       → contacts, messages, automations, logs, settings
 6. Tarayicidan panel: `http://SUNUCU_IP:3000`
 7. 7/24 calismasi icin systemd: bkz. `deploy/whatsapp-otomasyon.service`.
 
+> **Bedava 7/24 sunucu (onerilen):** Google Cloud "Always Free" e2-micro VM —
+> adim adim: `deploy/DEPLOY-gcp.md`. Genel/Oracle/VPS icin: `deploy/DEPLOY.md`.
+> Kurulum tek komut: `bash deploy/setup.sh`.
+
 ## Eski Python verisini tasima (opsiyonel)
 ```bash
 npm i better-sqlite3
