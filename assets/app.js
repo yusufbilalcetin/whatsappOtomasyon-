@@ -526,8 +526,13 @@ function renderEngine(s = {}) {
   const pairingCode = $('#pairing-code');
   const pairingPhoneText = $('#pairing-phone-text');
   const pairingError = $('#pairing-error');
+  const reconnectBtn = $('#wa-reconnect-btn');
   const canResetWa = engineOnline && s.waState !== 'qr' && s.waState !== 'connecting';
   const canRequestPairing = engineOnline && s.waState !== 'open';
+  // Motor bosta beklerken (deneme limiti dolup QR/baglanti durdugunda) tekrar tetikle.
+  const canReconnect = engineOnline && (s.waState === 'disconnected' || s.waState === 'logged_out' || !s.waState);
+  reconnectBtn.classList.toggle('hidden', !canReconnect);
+  reconnectBtn.disabled = !canReconnect;
   disconnectBtn.classList.toggle('hidden', !canResetWa);
   disconnectBtn.disabled = !canResetWa;
   pairingPanel.classList.toggle('hidden', !canRequestPairing);
@@ -564,7 +569,8 @@ function renderEngine(s = {}) {
   else if (s.waState === 'open') text.textContent = '✓ WhatsApp bağlı. Otomasyonlar çalışmaya hazır.';
   else if (showQr) text.textContent = 'Telefonunuzla bu QR kodu okutun:';
   else if (s.waState === 'connecting') text.textContent = 'WhatsApp’a bağlanılıyor…';
-  else if (s.waState === 'logged_out') text.textContent = 'Oturum kapandı. Yeni QR oluşturmak için bağlantıyı kesin.';
+  else if (s.waState === 'logged_out') text.textContent = 'Oturum kapandı. Yeniden bağlanmak için aşağıdaki “Yeniden dene” butonuna basın.';
+  else if (canReconnect) text.textContent = 'Bağlantı bekleniyor. QR veya kod almak için “Yeniden dene” butonuna basın.';
   else text.textContent = 'WhatsApp bağlantısı bekleniyor…';
 }
 
@@ -572,6 +578,13 @@ $('#contacts-sync-btn').onclick = async () => {
   try {
     await addCommand({ type: 'syncContacts' });
     toast('Kişiler yeniden senkronize ediliyor…');
+  } catch (e) { toast(e.message); }
+};
+
+$('#wa-reconnect-btn').onclick = async () => {
+  try {
+    await addCommand({ type: 'reconnectWhatsApp' });
+    toast('WhatsApp bağlantısı yeniden başlatılıyor…');
   } catch (e) { toast(e.message); }
 };
 

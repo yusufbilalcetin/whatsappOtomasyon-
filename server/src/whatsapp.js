@@ -16,6 +16,24 @@ import { setWhatsappStatus, setWhatsappPairing, clearUserData } from './firestor
 const sockets = new Map();
 const PAIRING_CODE_TTL_MS = 2 * 60 * 1000;
 
+// QR okutulmadan kac kez yenilensin; gecici hatada kac kez yeniden denensin.
+// Sinir asilinca surekli yeniden baglanma "firtinasi"ni durdurup bosta bekleriz
+// (panelden "Yeniden dene" ile tekrar tetiklenir). Eski kod sonsuz donguye girip
+// ayni hesapta cift socket ("conflict" / 401) ve sahte "kod reddedildi" uretiyordu.
+const MAX_QR_CYCLES = 6;
+const MAX_RECONNECTS = 8;
+const connAttempts = new Map(); // uid -> { qr, conn }
+
+function bumpAttempt(uid, kind) {
+  const a = connAttempts.get(uid) || { qr: 0, conn: 0 };
+  a[kind] += 1;
+  connAttempts.set(uid, a);
+  return a[kind];
+}
+function resetAttempts(uid) { connAttempts.delete(uid); }
+// Ustel geri cekilme: 3s, 6s, 12s ... en fazla 60s.
+function backoffMs(n) { return Math.min(3000 * 2 ** Math.max(0, n - 1), 60_000); }
+
 // Gelen mesaj (AI otomatik-yanit) icin disaridan kaydedilen isleyici.
 let incomingHandler = null;
 export function setIncomingHandler(fn) { incomingHandler = fn; }
@@ -173,6 +191,7 @@ export async function requestPairingCodeFor(uid, phone) {
 
     // Kodla eslestirmede yarim kalmis auth dosyasi (creds.me/pairingCode)
     // sonraki denemeleri 401'e dusurebiliyor. Her yeni kod temiz oturumdan uretilir.
+    resetAttempts(uid);
     closeSocket(uid, { resetting: true });
     await fs.rm(authDirFor(uid), { recursive: true, force: true });
     await setWhatsappStatus(uid, 'connecting', null);
@@ -311,6 +330,7 @@ export async function startWhatsAppFor(uid, { pairingMode = false } = {}) {
       if (entry.state !== 'open') {
         entry.state = 'open';
         entry.lastQr = null;
+        resetAttempts(uid); // basarili baglanti: deneme sayaclarini sifirla
         logger.info({ uid }, 'WhatsApp baglantisi acildi.');
         setWhatsappStatus(uid, 'open', null).catch(() => {});
         syncGroups(uid, sock); // gruplari cek
@@ -333,41 +353,59 @@ export async function startWhatsAppFor(uid, { pairingMode = false } = {}) {
       const pairingMode = !!entry.pairingMode;
       logger.warn({ uid, statusCode, loggedOut, manualClose, resetting, qrTimedOut, restartRequired, pairingMode }, 'WhatsApp baglantisi kapandi.');
       sockets.delete(uid);
-      if (resetting || manualClose) return;
-      if (pairingMode && loggedOut) {
-        await trySetWhatsappPairing(uid, {
-          phone: entry.pairingPhone,
-          code: null,
-          error: 'Kod kabul edilmedi veya suresi doldu. Yeni kod alip son kodu telefona girin.',
-        }, 'logged_out');
-        clearAuthAndStartQr(uid, { clearPairing: false }).catch((e) =>
-          logger.error({ uid, err: e.message }, 'Kod hatasi sonrasi QR baslatilamadi.'));
+      if (resetting || manualClose) { resetAttempts(uid); return; }
+
+      // PAIRING akisinda hata: QR'a DUSME. Hata mesaji goster ve bosta bekle.
+      // (Eski davranis QR'a dusup donguye giriyor, sahte "kod reddedildi" uretiyordu.)
+      if (pairingMode && (loggedOut || qrTimedOut)) {
+        const msg = qrTimedOut
+          ? 'Kodun suresi doldu. Yeni kod alin ve 2 dakika icinde telefona girin.'
+          : 'Kod kabul edilmedi. Yeni kod alip telefona en son kodu girin.';
+        await trySetWhatsappPairing(uid, { phone: entry.pairingPhone, code: null, error: msg }, qrTimedOut ? 'expired' : 'logged_out');
+        await setWhatsappStatus(uid, 'disconnected', null).catch(() => {});
+        resetAttempts(uid);
         return;
       }
-      if (pairingMode && qrTimedOut) {
-        await trySetWhatsappPairing(uid, {
-          phone: entry.pairingPhone,
-          code: null,
-          error: 'Kodun suresi doldu. Yeni kod alin ve 2 dakika icinde telefona girin.',
-        }, 'expired');
-        clearAuthAndStartQr(uid, { clearPairing: false }).catch((e) =>
-          logger.error({ uid, err: e.message }, 'Kod suresi sonrasi QR baslatilamadi.'));
-        return;
-      }
+
+      // Kayitli oturum kapandi (logout/conflict): yeni QR icin auth temizle (tek sefer).
       if (loggedOut) {
+        resetAttempts(uid);
         clearAuthAndStartQr(uid).catch((e) =>
           logger.error({ uid, err: e.message }, 'Logged out sonrasi QR baslatilamadi.'));
         return;
       }
-      if (qrTimedOut) {
-        // QR okutulmadan suresi doldu: panelde her zaman taze QR olsun diye kisa sure sonra yeni QR uret.
+
+      // 515: eslesme sonrasi normal yeniden baslatma — hizli, sayaca sayma.
+      if (restartRequired) {
         setWhatsappStatus(uid, 'connecting').catch(() => {});
-        setTimeout(() => startWhatsAppFor(uid).catch((e) => logger.error(e)), 8000);
+        setTimeout(() => startWhatsAppFor(uid).catch((e) => logger.error({ uid, err: e.message }, 'Yeniden baslatilamadi.')), 500);
+        return;
+      }
+
+      // QR okutulmadan suresi doldu: sinirli sayida yenile, sonra bosta bekle.
+      if (qrTimedOut) {
+        const n = bumpAttempt(uid, 'qr');
+        if (n >= MAX_QR_CYCLES) {
+          logger.info({ uid }, 'QR defalarca okutulmadi; bosta bekleniyor. Panelden yeniden tetiklenebilir.');
+          await setWhatsappStatus(uid, 'disconnected', null).catch(() => {});
+          resetAttempts(uid);
+          return;
+        }
+        setWhatsappStatus(uid, 'connecting').catch(() => {});
+        setTimeout(() => startWhatsAppFor(uid).catch((e) => logger.error({ uid, err: e.message }, 'QR yenilenemedi.')), backoffMs(n));
+        return;
+      }
+
+      // Diger gecici hatalar (Connection Failure / Timed Out): backoff ile dene, sinirda bosta bekle.
+      const n = bumpAttempt(uid, 'conn');
+      if (n >= MAX_RECONNECTS) {
+        logger.warn({ uid }, 'Tekrarli baglanti hatasi; bosta bekleniyor. Panelden yeniden tetiklenebilir.');
+        await setWhatsappStatus(uid, 'disconnected', null).catch(() => {});
+        resetAttempts(uid);
         return;
       }
       setWhatsappStatus(uid, 'connecting').catch(() => {});
-      const delay = restartRequired ? 500 : 3000;
-      setTimeout(() => startWhatsAppFor(uid).catch((e) => logger.error(e)), delay);
+      setTimeout(() => startWhatsAppFor(uid).catch((e) => logger.error({ uid, err: e.message }, 'Yeniden baglanilamadi.')), backoffMs(n));
     }
   });
 }
@@ -375,6 +413,17 @@ export async function startWhatsAppFor(uid, { pairingMode = false } = {}) {
 export function stopWhatsAppFor(uid) {
   closeSocket(uid);
   setWhatsappStatus(uid, 'disconnected', null).catch(() => {});
+}
+
+// Panelden "Yeniden dene": bosta bekleyen (deneme limiti dolmus) oturumu tekrar baslat.
+// Kayit varsa baglanir, yoksa yeni QR uretir. Zaten bagli/baglaniyorsa dokunmaz.
+export async function reconnectWhatsAppFor(uid) {
+  resetAttempts(uid);
+  const entry = sockets.get(uid);
+  if (entry && (entry.state === 'open' || entry.state === 'connecting' || entry.state === 'qr')) return;
+  await trySetWhatsappPairing(uid, { phone: null, code: null, error: null }, 'reconnect');
+  await setWhatsappStatus(uid, 'connecting', null).catch(() => {});
+  await startWhatsAppFor(uid);
 }
 
 export async function resetWhatsAppFor(uid) {

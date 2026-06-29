@@ -5,7 +5,7 @@ import {
 } from './firestore.js';
 import {
   startWhatsAppFor, stopWhatsAppFor, resetWhatsAppFor, resyncContactsFor,
-  requestPairingCodeFor, setIncomingHandler, setContactsHandler,
+  requestPairingCodeFor, reconnectWhatsAppFor, setIncomingHandler, setContactsHandler,
 } from './whatsapp.js';
 import { reloadSchedulesFor, stopSchedulesFor, runNow } from './scheduler.js';
 import { handleIncoming, setAutoReplyConfig, clearAutoReplyConfig } from './autoreply.js';
@@ -27,6 +27,8 @@ async function handleCommand(uid, cmd) {
       await resyncContactsFor(uid);
     } else if (cmd.type === 'requestPairingCode' && cmd.phone) {
       await requestPairingCodeFor(uid, cmd.phone);
+    } else if (cmd.type === 'reconnectWhatsApp') {
+      await reconnectWhatsAppFor(uid);
     }
   } catch (e) {
     logger.error({ uid, err: e.message }, 'Komut calistirilamadi.');
