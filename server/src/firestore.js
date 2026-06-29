@@ -47,26 +47,33 @@ export async function listContactPhones(uid) {
 }
 
 // WhatsApp'tan cekilen kisileri/gruplari toplu ekler/gunceller (jid = dokuman id).
+// Kota dostu: yalnizca gercekten degisen alanlari yazar, kullanicinin verdigi customName'e dokunmaz.
 export async function upsertContacts(uid, items) {
   const valid = items.filter((it) => it && it.jid);
   for (let i = 0; i < valid.length; i += 400) {
     const chunk = valid.slice(i, i + 400);
     const batch = db.batch();
+    let writes = 0;
     for (const it of chunk) {
       const id = it.jid.replace(/\//g, '_');
       const ref = contactsCol(uid).doc(id);
       const data = { ...it };
-      if (data.type === 'user' && data.nameSource === 'phone') {
-        const existing = await ref.get();
-        const existingData = existing.exists ? existing.data() : {};
-        if (existingData?.name && existingData.nameSource !== 'phone') {
-          delete data.name;
-          delete data.nameSource;
-        }
+      const existing = await ref.get();
+      const existingData = existing.exists ? existing.data() : {};
+      // Telefon-yedek isim, daha once gelmis gercek WhatsApp ismini ezmesin.
+      if (data.type === 'user' && data.nameSource === 'phone'
+        && existingData.name && existingData.nameSource !== 'phone') {
+        delete data.name;
+        delete data.nameSource;
       }
-      batch.set(ref, data, { merge: true });
+      // Hicbir alan degismiyorsa yazma (gereksiz Firestore yazimini onler).
+      const changed = Object.keys(data).some((k) => existingData[k] !== data[k]);
+      if (!existing.exists || changed) {
+        batch.set(ref, data, { merge: true });
+        writes++;
+      }
     }
-    await batch.commit();
+    if (writes) await batch.commit();
   }
 }
 
@@ -119,11 +126,11 @@ export function watchUserDoc(uid, onChange) {
 }
 
 // --- Kullanici durum (panel okur): users/{uid} dokumaninda tutulur ---
-export async function setWhatsappStatus(uid, waState, waQr = null) {
-  await userDoc(uid).set(
-    { waState, waQr, waUpdated: FieldValue.serverTimestamp() },
-    { merge: true },
-  );
+// waQr atlanirsa (undefined) mevcut QR'a dokunulmaz; null verilirse QR temizlenir.
+export async function setWhatsappStatus(uid, waState, waQr) {
+  const data = { waState, waUpdated: FieldValue.serverTimestamp() };
+  if (waQr !== undefined) data.waQr = waQr;
+  await userDoc(uid).set(data, { merge: true });
 }
 export async function writeHeartbeat(uid) {
   await userDoc(uid).set({ engineHeartbeat: FieldValue.serverTimestamp() }, { merge: true });

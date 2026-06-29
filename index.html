@@ -154,12 +154,26 @@
       <!-- Kişiler -->
       <section id="tab-contacts" class="tab hidden">
         <div class="card">
-          <div class="card-head"><h2>WhatsApp kişileri ve grupları</h2></div>
-          <p class="muted">Kişiler ve gruplar WhatsApp bağlandıktan sonra otomatik çekilir.</p>
+          <div class="card-head">
+            <h2>WhatsApp kişileri ve grupları</h2>
+            <button id="contacts-sync-btn" type="button" class="btn btn-ghost">Kişileri yeniden senkronize et</button>
+          </div>
+          <p class="muted">Kişiler ve gruplar WhatsApp bağlandıktan sonra otomatik çekilir. İsimler telefonunuzda kayıtlı olduğu şekilde gelir. Yeni kişi kaydettiyseniz bu butonla güncelleyin.</p>
           <label class="field">
             <span>Ara</span>
             <input id="contact-search" type="search" autocomplete="off" placeholder="İsim veya telefon ara" />
           </label>
+          <form id="contact-add-form" class="form-grid">
+            <label class="field"><span>İsim</span>
+              <input name="name" required placeholder="Örn: Annem" />
+            </label>
+            <label class="field"><span>Telefon</span>
+              <input name="phone" required placeholder="+905xxxxxxxxx" />
+            </label>
+            <div class="actions span-2">
+              <button type="submit" class="btn btn-primary">Kişi ekle</button>
+            </div>
+          </form>
         </div>
         <ul id="contact-list" class="list"></ul>
       </section>

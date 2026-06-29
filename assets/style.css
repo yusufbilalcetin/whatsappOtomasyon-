@@ -303,6 +303,11 @@ main {
 
 .card-head {
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .card-head h2 {
@@ -1182,4 +1187,34 @@ select {
     width: 100%;
     height: 44px;
   }
+}
+
+/* Kişi adı düzenleme (inline) + küçük butonlar */
+.rename-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rename-input {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 10px;
+  font: inherit;
+  background: var(--surface, #fff);
+  color: var(--text);
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+#contact-add-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #e4e7ec);
 }

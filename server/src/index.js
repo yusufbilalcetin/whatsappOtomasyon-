@@ -4,7 +4,7 @@ import {
   deleteCommand, getAutomation, writeHeartbeat, upsertContacts,
 } from './firestore.js';
 import {
-  startWhatsAppFor, stopWhatsAppFor, resetWhatsAppFor,
+  startWhatsAppFor, stopWhatsAppFor, resetWhatsAppFor, resyncContactsFor,
   setIncomingHandler, setContactsHandler,
 } from './whatsapp.js';
 import { reloadSchedulesFor, stopSchedulesFor, runNow } from './scheduler.js';
@@ -23,6 +23,8 @@ async function handleCommand(uid, cmd) {
       if (automation) await runNow(uid, automation);
     } else if (cmd.type === 'disconnectWhatsApp') {
       await resetWhatsAppFor(uid);
+    } else if (cmd.type === 'syncContacts') {
+      await resyncContactsFor(uid);
     }
   } catch (e) {
     logger.error({ uid, err: e.message }, 'Komut calistirilamadi.');

@@ -180,13 +180,13 @@ function contactDetail(c) {
 }
 
 function contactName(c) {
-  return c.name || c.phone || c.jid || '';
+  return c.customName || c.name || c.phone || c.jid || '';
 }
 
 function matchesContact(c, term) {
   const q = searchText(term);
   if (!q) return true;
-  return [c.name, c.phone, c.jid, c.type === 'group' ? 'grup' : 'kişi']
+  return [c.customName, c.name, c.phone, c.jid, c.type === 'group' ? 'grup' : 'kişi']
     .some((v) => searchText(v).includes(q));
 }
 
@@ -207,10 +207,42 @@ function renderContactList() {
 
   filtered.forEach((c) => {
     const li = document.createElement('li');
+    const renamed = c.customName ? ' <span class="badge ok">özel ad</span>' : '';
     li.innerHTML = `
-      <div class="li-main"><div class="li-title">${contactName(c)}</div><div class="li-sub">${contactDetail(c)}</div></div>`;
+      <div class="li-main"><div class="li-title">${contactName(c)}${renamed}</div><div class="li-sub">${contactDetail(c)}</div></div>
+      <div class="li-actions">
+        <button class="icon-btn" title="İsim ver / düzenle">✎</button>
+      </div>`;
+    li.querySelector('button').onclick = () => startRenameContact(li, c);
     ul.appendChild(li);
   });
+}
+
+// Kişiye panelden özel ad ver (WhatsApp isim getirmediğinde). customName WhatsApp senkronunda korunur.
+function startRenameContact(li, c) {
+  const main = li.querySelector('.li-main');
+  main.innerHTML = `
+    <div class="rename-row">
+      <input class="rename-input" type="text" maxlength="60" placeholder="${c.phone || 'İsim'}" />
+      <button type="button" class="btn btn-primary btn-sm rename-save">Kaydet</button>
+      <button type="button" class="btn btn-ghost btn-sm rename-cancel">Vazgeç</button>
+    </div>
+    <div class="li-sub">${contactDetail(c)}</div>`;
+  const input = main.querySelector('.rename-input');
+  input.value = c.customName || '';
+  input.focus();
+  const save = async () => {
+    try {
+      await updateDoc(uItem('contacts', c.id), { customName: input.value.trim() });
+      toast('İsim güncellendi.');
+    } catch (e) { toast(e.message); renderContactList(); }
+  };
+  main.querySelector('.rename-save').onclick = save;
+  main.querySelector('.rename-cancel').onclick = () => renderContactList();
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+    if (e.key === 'Escape') renderContactList();
+  };
 }
 
 function renderSelectedContacts() {
@@ -284,6 +316,26 @@ function renderContacts(items) {
 }
 
 $('#contact-search').oninput = renderContactList;
+
+// Manuel kişi ekleme (WhatsApp'ta olmayan/isimsiz gelen kişiler için).
+$('#contact-add-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const name = form.name.value.trim();
+  let phone;
+  try { phone = normalizePhone(form.phone.value); }
+  catch (err) { return toast(err.message); }
+  if (!name) return toast('İsim yazın.');
+  const jid = `${phone.replace('+', '')}@s.whatsapp.net`;
+  const id = jid.replace(/\//g, '_');
+  try {
+    await setDoc(uItem('contacts', id), {
+      jid, phone, customName: name, type: 'user', source: 'manual',
+    }, { merge: true });
+    form.reset();
+    toast('Kişi eklendi.');
+  } catch (err) { toast(err.message); }
+};
 $('#contact-picker-input').onfocus = () => { contactPickerOpen = true; renderContactPicker(); };
 $('#contact-picker-input').oninput = () => { contactPickerOpen = true; renderContactPicker(); };
 $('#contact-picker-input').onkeydown = (e) => {
@@ -317,6 +369,7 @@ function renderLogs(items) {
 }
 
 // =================== Motor + WhatsApp durumu ===================
+let lastRenderedQr = null;
 function renderEngine(s = {}) {
   const beat = s.engineHeartbeat?.toDate ? s.engineHeartbeat.toDate() : null;
   const engineOnline = beat && (Date.now() - beat.getTime() < 3 * 60 * 1000);
@@ -331,16 +384,33 @@ function renderEngine(s = {}) {
   const qr = $('#conn-qr');
   const disconnectBtn = $('#wa-disconnect-btn');
   const canResetWa = engineOnline && s.waState !== 'qr' && s.waState !== 'connecting';
-  qr.classList.add('hidden');
   disconnectBtn.classList.toggle('hidden', !canResetWa);
   disconnectBtn.disabled = !canResetWa;
+
+  // QR görselini yalnızca gerçekten değiştiğinde güncelle (sürekli yeniden yüklenip yanıp sönmesini önler).
+  const showQr = engineOnline && s.waState === 'qr' && !!s.waQr;
+  if (showQr) {
+    if (s.waQr !== lastRenderedQr) { qr.src = s.waQr; lastRenderedQr = s.waQr; }
+    qr.classList.remove('hidden');
+  } else {
+    lastRenderedQr = null;
+    qr.classList.add('hidden');
+  }
+
   if (!engineOnline) text.textContent = 'Motor çevrimdışı. Mesaj gönderimi için motoru (bilgisayar/sunucu) çalıştırın.';
   else if (s.waState === 'open') text.textContent = '✓ WhatsApp bağlı. Otomasyonlar çalışmaya hazır.';
-  else if (s.waState === 'qr' && s.waQr) { text.textContent = 'Telefonunuzla bu QR kodu okutun:'; qr.src = s.waQr; qr.classList.remove('hidden'); }
+  else if (showQr) text.textContent = 'Telefonunuzla bu QR kodu okutun:';
   else if (s.waState === 'connecting') text.textContent = 'WhatsApp’a bağlanılıyor…';
   else if (s.waState === 'logged_out') text.textContent = 'Oturum kapandı. Yeni QR oluşturmak için bağlantıyı kesin.';
   else text.textContent = 'WhatsApp bağlantısı bekleniyor…';
 }
+
+$('#contacts-sync-btn').onclick = async () => {
+  try {
+    await addDoc(uCol('commands'), { type: 'syncContacts', createdAt: serverTimestamp() });
+    toast('Kişiler yeniden senkronize ediliyor…');
+  } catch (e) { toast(e.message); }
+};
 
 $('#wa-disconnect-btn').onclick = async () => {
   if (!confirm('WhatsApp bağlantısı kesilsin ve yeni QR oluşturulsun mu?')) return;
@@ -386,7 +456,11 @@ function showApp() {
 
 function startListeners() {
   toggleModeFields();
-  unsubs.push(onSnapshot(query(uCol('contacts'), orderBy('name')), (s) => renderContacts(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
+  unsubs.push(onSnapshot(uCol('contacts'), (s) => {
+    const list = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    list.sort((a, b) => contactName(a).localeCompare(contactName(b), 'tr'));
+    renderContacts(list);
+  }));
   unsubs.push(onSnapshot(uCol('automations'), (s) => renderAutomations(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
   unsubs.push(onSnapshot(query(uCol('logs'), orderBy('sentAt', 'desc'), limit(100)), (s) => renderLogs(s.docs.map((d) => ({ id: d.id, ...d.data() })))));
   unsubs.push(onSnapshot(userRef(), (d) => { const data = d.data() || {}; renderEngine(data); renderAiConfig(data); }));

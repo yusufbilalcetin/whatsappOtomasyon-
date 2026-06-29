@@ -4,6 +4,7 @@ import makeWASocket, {
   Browsers,
   DisconnectReason,
   jidEncode,
+  ALL_WA_PATCH_NAMES,
 } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 import fs from 'node:fs/promises';
@@ -57,13 +58,6 @@ function mapGroup(g) {
   return { jid: g.id, name: g.subject || 'Grup', type: 'group', source: 'whatsapp' };
 }
 
-function groupParticipantContacts(groups) {
-  return Object.values(groups || {})
-    .flatMap((g) => g.participants || [])
-    .map((p) => mapContact(p))
-    .filter(Boolean);
-}
-
 function emitContacts(uid, rawList, eventName, options = {}) {
   if (!contactsHandler) return;
   const items = uniqueByJid((rawList || []).map((c) => mapContact(c, options)));
@@ -100,19 +94,33 @@ async function syncGroups(uid, sock) {
   if (!contactsHandler) return;
   try {
     const groups = await sock.groupFetchAllParticipating();
+    // Yalnizca gruplari kaydet; grup katilimcilarini KISI olarak yazma
+    // (yuzlerce isimsiz numara hem listeyi sisirir hem Firestore kotasini tuketir).
     const groupItems = uniqueByJid(Object.values(groups).map(mapGroup));
-    const participantItems = uniqueByJid(groupParticipantContacts(groups));
-    const items = uniqueByJid([...groupItems, ...participantItems]);
-    if (items.length) await contactsHandler(uid, items);
-    logger.info({
-      uid,
-      groups: groupItems.length,
-      participants: participantItems.length,
-      count: items.length,
-    }, 'WhatsApp grup ve katilimci senkronu tamamlandi.');
+    if (groupItems.length) await contactsHandler(uid, groupItems);
+    logger.info({ uid, groups: groupItems.length }, 'WhatsApp grup senkronu tamamlandi.');
   } catch (e) {
     logger.warn({ uid, err: e.message }, 'Gruplar cekilemedi.');
   }
+}
+
+// Telefonda KAYITLI kisi isimlerini WhatsApp'tan zorla cektirir.
+// App-state senkronu her "contactAction" icin contacts.upsert (name = kayitli isim) yayar.
+async function syncContactNames(uid, sock, { full = false } = {}) {
+  try {
+    await sock.resyncAppState(ALL_WA_PATCH_NAMES, full);
+    logger.info({ uid, full }, 'Kayitli kisi isimleri senkronu istendi.');
+  } catch (e) {
+    logger.warn({ uid, err: e.message }, 'Kisi ismi senkronu yapilamadi.');
+  }
+}
+
+// Panelden tetiklenen manuel kisi yeniden senkronu.
+export async function resyncContactsFor(uid) {
+  const entry = sockets.get(uid);
+  if (!entry || entry.state !== 'open') throw new Error('WhatsApp bagli degil.');
+  await syncContactNames(uid, entry.sock, { full: true });
+  await syncGroups(uid, entry.sock);
 }
 
 const startedAt = Math.floor(Date.now() / 1000); // motor baslamadan onceki mesajlari yoksay
@@ -149,9 +157,9 @@ export async function startWhatsAppFor(uid) {
     browser: Browsers.macOS('Desktop'),
     logger: logger.child({ module: 'baileys', uid }),
     markOnlineOnConnect: false,
-    syncFullHistory: true,
+    syncFullHistory: true, // ilk senkronda kisi listesi + isimlerin (notify) gelmesi icin gerekli
   });
-  const entry = { sock, state: 'connecting', qrWritten: false };
+  const entry = { sock, state: 'connecting', lastQr: null };
   sockets.set(uid, entry);
 
   sock.ev.on('creds.update', saveCreds);
@@ -168,13 +176,20 @@ export async function startWhatsAppFor(uid) {
   sock.ev.on('groups.upsert', (gs) => emitGroups(uid, gs, 'groups.upsert'));
   sock.ev.on('groups.update', (gs) => emitGroups(uid, gs, 'groups.update'));
 
-  // Gelen mesajlar (AI otomatik-yanit). Sadece birebir sohbet, bize gelen, metinli.
+  // Gelen mesajlar: (1) kisi ismini (pushName) yakala, (2) AI otomatik-yanit.
   sock.ev.on('messages.upsert', ({ messages, type }) => {
-    if (type !== 'notify' || !incomingHandler) return;
+    if (type !== 'notify') return;
     for (const msg of messages) {
       const jid = msg.key?.remoteJid || '';
       if (msg.key?.fromMe) continue;
       if (jid.endsWith('@g.us') || jid.endsWith('@broadcast') || jid === 'status@broadcast') continue;
+
+      // Mesaj atan kisinin WhatsApp adini (pushName) kisilere yaz — isimler zamanla dolar.
+      if (msg.pushName && jid.endsWith('@s.whatsapp.net')) {
+        emitContacts(uid, [{ id: jid, notify: msg.pushName }], 'messages.pushName');
+      }
+
+      if (!incomingHandler) continue;
       if ((msg.messageTimestamp || 0) < startedAt) continue; // eski mesajlari atla
       const text = extractText(msg);
       if (!text.trim()) continue;
@@ -184,23 +199,35 @@ export async function startWhatsAppFor(uid) {
   });
 
   sock.ev.on('connection.update', async (update) => {
+    // Eski/yenilenmis socket'in gecikmis event'lerini yoksay (durum oynamasini onler).
+    if (sockets.get(uid) !== entry) return;
     const { connection, qr, lastDisconnect } = update;
 
-    if (qr && !entry.qrWritten) {
-      entry.qrWritten = true;
+    // QR her donusumde (~20 sn) yenilenir; panel her zaman gecerli kodu gosterir.
+    if (qr && qr !== entry.lastQr) {
+      entry.lastQr = qr;
       entry.state = 'qr';
       const dataUrl = await QRCode.toDataURL(qr, { margin: 1, width: 320 });
       setWhatsappStatus(uid, 'qr', dataUrl).catch((e) => logger.warn(e, 'QR yazilamadi.'));
     }
-    if (connection === 'connecting') {
+    // 'connecting' QR'i SILMEZ; sadece zaten farkli bir durumdaysak yaz (gereksiz yazimi onler).
+    if (connection === 'connecting' && entry.state !== 'connecting' && entry.state !== 'qr') {
       entry.state = 'connecting';
       setWhatsappStatus(uid, 'connecting').catch(() => {});
     }
     if (connection === 'open') {
-      entry.state = 'open';
-      logger.info({ uid }, 'WhatsApp baglantisi acildi.');
-      setWhatsappStatus(uid, 'open', null).catch(() => {});
-      syncGroups(uid, sock); // gruplari cek
+      if (entry.state !== 'open') {
+        entry.state = 'open';
+        entry.lastQr = null;
+        logger.info({ uid }, 'WhatsApp baglantisi acildi.');
+        setWhatsappStatus(uid, 'open', null).catch(() => {});
+        syncGroups(uid, sock); // gruplari cek
+        // Telefonda kayitli kisi isimlerini cektir (ilk acilista tam senkron).
+        if (!entry.contactsSynced) {
+          entry.contactsSynced = true;
+          syncContactNames(uid, sock, { full: true });
+        }
+      }
     }
     if (connection === 'close') {
       entry.state = 'disconnected';
@@ -208,19 +235,25 @@ export async function startWhatsAppFor(uid) {
       const loggedOut = statusCode === DisconnectReason.loggedOut;
       const manualClose = !!entry.manualClose;
       const resetting = !!entry.resetting;
-      const qrTimedOut = statusCode === DisconnectReason.timedOut && entry.state === 'qr';
-      logger.warn({ uid, statusCode, loggedOut, manualClose, resetting, qrTimedOut }, 'WhatsApp baglantisi kapandi.');
+      const qrTimedOut = statusCode === DisconnectReason.timedOut && !!entry.lastQr;
+      // 515: eslesme sonrasi yeniden baslatma gerekli (hizli yeniden bagla).
+      const restartRequired = statusCode === DisconnectReason.restartRequired;
+      logger.warn({ uid, statusCode, loggedOut, manualClose, resetting, qrTimedOut, restartRequired }, 'WhatsApp baglantisi kapandi.');
       sockets.delete(uid);
-      if (resetting) return;
+      if (resetting || manualClose) return;
       if (loggedOut) {
         clearAuthAndStartQr(uid).catch((e) =>
           logger.error({ uid, err: e.message }, 'Logged out sonrasi QR baslatilamadi.'));
         return;
       }
-      setWhatsappStatus(uid, 'disconnected', null).catch(() => {});
-      if (!loggedOut && !manualClose && !qrTimedOut) {
-        setTimeout(() => startWhatsAppFor(uid).catch((e) => logger.error(e)), 3000);
+      if (qrTimedOut) {
+        // QR okutulmadan suresi doldu: tekrar deneme firtinasi yerine bekleyen QR durumunu birak.
+        setWhatsappStatus(uid, 'disconnected', null).catch(() => {});
+        return;
       }
+      setWhatsappStatus(uid, 'connecting').catch(() => {});
+      const delay = restartRequired ? 500 : 3000;
+      setTimeout(() => startWhatsAppFor(uid).catch((e) => logger.error(e)), delay);
     }
   });
 }
